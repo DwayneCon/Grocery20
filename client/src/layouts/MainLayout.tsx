@@ -1,21 +1,6 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Box, IconButton, Tooltip, useTheme, useMediaQuery } from '@mui/material';
 import {
-  Box,
-  AppBar,
-  Toolbar,
-  Typography,
-  IconButton,
-  Drawer,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  useTheme,
-  useMediaQuery,
-} from '@mui/material';
-import {
-  Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Chat as ChatIcon,
   Restaurant as RestaurantIcon,
@@ -23,28 +8,17 @@ import {
   People as PeopleIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useDispatch } from 'react-redux';
 import { logout } from '../features/auth/authSlice';
-
-const drawerWidth = 240;
+import GlassCard from '../components/common/GlassCard';
 
 const MainLayout = () => {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
-
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
@@ -54,73 +28,104 @@ const MainLayout = () => {
     { text: 'Shopping List', icon: <ShoppingCartIcon />, path: '/shopping-list' },
   ];
 
-  const drawer = (
-    <Box>
-      <Toolbar>
-        <Typography variant="h6" noWrap component="div">
-          Grocery Planner
-        </Typography>
-      </Toolbar>
-      <List>
-        {menuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton onClick={() => navigate(item.path)}>
-              <ListItemIcon>{item.icon}</ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
-        <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout}>
-            <ListItemIcon><LogoutIcon /></ListItemIcon>
-            <ListItemText primary="Logout" />
-          </ListItemButton>
-        </ListItem>
-      </List>
-    </Box>
-  );
+  const handleLogout = () => {
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
-    <Box sx={{ display: 'flex', width: '100%' }}>
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
-      >
-        <Toolbar>
-          {isMobile && (
-            <IconButton
-              color="inherit"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
-            >
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Typography variant="h6" noWrap component="div">
-            AI Grocery Planner
-          </Typography>
-        </Toolbar>
-      </AppBar>
+    <Box sx={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
+      {/* Main Content Area */}
+      <Box component="main" sx={{ pb: 12 }}>
+        <AnimatePresence mode='wait'>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
+      </Box>
 
-      <Drawer
-        variant={isMobile ? 'temporary' : 'permanent'}
-        open={isMobile ? mobileOpen : true}
-        onClose={handleDrawerToggle}
+      {/* Floating Glass Navigation Dock */}
+      <Box
+        component={motion.div}
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
         sx={{
-          width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-          },
+          position: 'fixed',
+          bottom: 32,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          width: 'auto',
+          maxWidth: '90vw',
         }}
       >
-        {drawer}
-      </Drawer>
+        <GlassCard
+          intensity="strong"
+          sx={{
+            p: 1,
+            borderRadius: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(20px)',
+            background: 'rgba(22, 22, 22, 0.6)'
+          }}
+        >
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Tooltip key={item.text} title={item.text} placement="top" arrow>
+                <motion.div
+                  whileHover={{ scale: 1.1, y: -5 }}
+                  whileTap={{ scale: 0.9 }}
+                >
+                  <IconButton
+                    onClick={() => navigate(item.path)}
+                    sx={{
+                      color: isActive ? '#4ECDC4' : 'rgba(255,255,255,0.6)',
+                      bgcolor: isActive ? 'rgba(78, 205, 196, 0.15)' : 'transparent',
+                      p: 1.5,
+                      transition: 'all 0.3s ease',
+                      '&:hover': {
+                        color: '#4ECDC4',
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                      }
+                    }}
+                  >
+                    {item.icon}
+                  </IconButton>
+                </motion.div>
+              </Tooltip>
+            );
+          })}
 
-      <Box component="main" sx={{ flexGrow: 1, p: 3, mt: 8 }}>
-        <Outlet />
+          <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.1)', mx: 1 }} />
+
+          <Tooltip title="Logout" placement="top" arrow>
+             <motion.div whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.9 }}>
+              <IconButton
+                onClick={handleLogout}
+                sx={{
+                  color: '#FF6B6B',
+                  p: 1.5,
+                  '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' }
+                }}
+              >
+                <LogoutIcon />
+              </IconButton>
+            </motion.div>
+          </Tooltip>
+
+        </GlassCard>
       </Box>
     </Box>
   );
