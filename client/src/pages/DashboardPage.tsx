@@ -59,7 +59,7 @@ const DashboardPage = () => {
 
   return (
     <AuroraBackground speed={20} colors={['#4ECDC4', '#556270', '#C7F464']}>
-      <Box sx={{ p: { xs: 2, md: 4 }, position: 'relative', zIndex: 2, maxWidth: '1600px', mx: 'auto' }}>
+      <Box sx={{ p: { xs: 2, md: 4, lg: 6 }, position: 'relative', zIndex: 2, width: '100%' }}>
 
         {/* Header Section */}
         <Box
@@ -70,14 +70,20 @@ const DashboardPage = () => {
         >
           <Box>
             <Typography variant="h2" fontWeight="800" sx={{
-              background: 'linear-gradient(45deg, #FFFFFF 30%, #E0E0E0 90%)',
+              fontSize: { xs: '2rem', md: '3.5rem' },
+              background: 'linear-gradient(to right, #fff, #a5b4fc)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               textShadow: '0 10px 20px rgba(0,0,0,0.1)'
             }}>
               {getGreeting()}, {user?.name ? sanitizeText(user.name.split(' ')[0]) : 'Chef'}
             </Typography>
-            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.8)', mt: 1, fontWeight: 300 }}>
+            <Typography variant="h6" sx={{
+              color: 'rgba(255,255,255,0.8)',
+              mt: 1,
+              fontWeight: 300,
+              fontSize: { xs: '0.95rem', md: '1.25rem' }
+            }}>
               Your culinary command center is ready.
             </Typography>
           </Box>
@@ -87,22 +93,22 @@ const DashboardPage = () => {
         </Box>
 
         {/* Main Content Grid */}
-        <Grid container spacing={4} component={motion.div} variants={containerVar} initial="hidden" animate="show">
+        <Grid container spacing={3} component={motion.div} variants={containerVar} initial="hidden" animate="show">
 
           {/* Primary Action - AI Chat */}
-          <Grid item xs={12} md={8}>
+          <Grid item xs={12} lg={8}>
             <GlassCard
               intensity="strong"
               component={motion.div}
               variants={itemVar}
               sx={{
                 height: '100%',
-                minHeight: 280,
+                minHeight: { xs: 300, md: 400 },
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'flex-start',
-                p: 6,
+                p: { xs: 4, md: 6 },
                 cursor: 'pointer',
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
               }}
@@ -144,55 +150,83 @@ const DashboardPage = () => {
           </Grid>
 
           {/* Secondary Actions */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, height: '100%' }}>
+          <Grid item xs={12} lg={4}>
+            <Grid container spacing={3}>
 
               {/* Meal Plan Card */}
-              <NeuroCard
-                component={motion.div}
-                variants={itemVar}
-                sx={{ flex: 1, cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.9)' }}
-                onClick={() => navigate('/meal-plan')}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box>
-                    <Typography variant="h6" fontWeight="bold" color="primary.dark">Weekly Menu</Typography>
-                    <Typography variant="body2" color="text.secondary">3 meals planned today</Typography>
+              <Grid item xs={12} sm={6} lg={12}>
+                <NeuroCard
+                  component={motion.div}
+                  variants={itemVar}
+                  sx={{ cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.9)', height: '100%' }}
+                  onClick={() => navigate('/meal-plan')}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" color="primary.dark">Weekly Menu</Typography>
+                      <Typography variant="body2" color="text.secondary">3 meals planned today</Typography>
+                    </Box>
+                    <Restaurant sx={{ fontSize: 32, color: 'primary.main' }} />
                   </Box>
-                  <Restaurant sx={{ fontSize: 32, color: 'primary.main' }} />
-                </Box>
-              </NeuroCard>
+                </NeuroCard>
+              </Grid>
 
               {/* Shopping List Card */}
-              <NeuroCard
-                component={motion.div}
-                variants={itemVar}
-                sx={{ flex: 1, cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.9)' }}
-                onClick={() => navigate('/shopping-list')}
-              >
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Box>
-                    <Typography variant="h6" fontWeight="bold" color="success.dark">Shopping List</Typography>
-                    <Typography variant="body2" color="text.secondary">12 items pending</Typography>
+              <Grid item xs={12} sm={6} lg={12}>
+                <NeuroCard
+                  component={motion.div}
+                  variants={itemVar}
+                  sx={{ cursor: 'pointer', bgcolor: 'rgba(255,255,255,0.9)', height: '100%' }}
+                  onClick={() => navigate('/shopping-list')}
+                >
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" color="success.dark">Shopping List</Typography>
+                      <Typography variant="body2" color="text.secondary">12 items pending</Typography>
+                    </Box>
+                    <ShoppingCart sx={{ fontSize: 32, color: 'success.main' }} />
                   </Box>
-                  <ShoppingCart sx={{ fontSize: 32, color: 'success.main' }} />
-                </Box>
-              </NeuroCard>
+                </NeuroCard>
+              </Grid>
 
-              {/* Budget/Stats */}
-              <GlassCard intensity="light" component={motion.div} variants={itemVar} sx={{ flex: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <TrendingUp sx={{ color: 'white' }} />
+              {/* Budget/Stats with Animated Progress Bar */}
+              <Grid item xs={12}>
+                <GlassCard intensity="light" component={motion.div} variants={itemVar}>
                   <Box>
-                    <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Weekly Spend</Typography>
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
-                      ${summary?.stats?.weeklyBudget ? 124 : 0} / ${summary?.stats?.weeklyBudget || 200}
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                      <TrendingUp sx={{ color: 'white' }} />
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="subtitle2" sx={{ color: 'rgba(255,255,255,0.7)' }}>Weekly Spend</Typography>
+                        <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                          ${summary?.stats?.weeklyBudget ? 124 : 0} / ${summary?.stats?.weeklyBudget || 200}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    {/* Animated Progress Bar */}
+                    <Box sx={{
+                      width: '100%',
+                      height: 8,
+                      bgcolor: 'rgba(255,255,255,0.2)',
+                      borderRadius: 2,
+                      overflow: 'hidden'
+                    }}>
+                      <Box
+                        component={motion.div}
+                        initial={{ width: '0%' }}
+                        animate={{ width: '62%' }}
+                        transition={{ duration: 1.5, ease: 'easeOut' }}
+                        sx={{
+                          height: '100%',
+                          background: 'linear-gradient(90deg, #4ECDC4, #45B7AA)',
+                          borderRadius: 2
+                        }}
+                      />
+                    </Box>
                   </Box>
-                </Box>
-              </GlassCard>
+                </GlassCard>
+              </Grid>
 
-            </Box>
+            </Grid>
           </Grid>
 
           {/* Household Status Bar */}
