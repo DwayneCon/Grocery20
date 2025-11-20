@@ -113,17 +113,16 @@ const ChatPage = () => {
                         border: '1px solid rgba(255,255,255,0.1)'
                       }}
                     >
-                      <Typography
-                        variant="body1"
-                        sx={{ color: 'white', lineHeight: 1.6 }}
-                        dangerouslySetInnerHTML={
-                          message.sender === 'ai'
-                            ? { __html: sanitizeAIContent(message.text) }
-                            : undefined
-                        }
-                      >
-                        {message.sender === 'user' && message.text}
-                      </Typography>
+                      {message.sender === 'ai' ? (
+                        <Box
+                          sx={{ color: 'white', lineHeight: 1.6, fontSize: '1rem' }}
+                          dangerouslySetInnerHTML={{ __html: sanitizeAIContent(message.text) }}
+                        />
+                      ) : (
+                        <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
+                          {message.text}
+                        </Typography>
+                      )}
                     </GlassCard>
                   </Box>
                 </ListItem>
