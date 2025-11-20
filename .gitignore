@@ -108,6 +108,10 @@ temp/
 .vite
 vite.config.js.timestamp-*
 
+# PWA dev artifacts
+client/dev-dist/
+dev-dist/
+
 # Optional stylelint cache
 .stylelintcache
 

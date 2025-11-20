@@ -34,97 +34,111 @@ const MainLayout = () => {
   };
 
   return (
-    <Box sx={{ minHeight: '100vh', position: 'relative', overflow: 'hidden' }}>
-      {/* Main Content Area */}
-      <Box component="main" sx={{ pb: 12 }}>
+    <Box sx={{ minHeight: '100vh', width: '100vw', overflowX: 'hidden', position: 'relative' }}>
+
+      {/* Content Area - Now Full Width */}
+      <Box component="main" sx={{ pb: { xs: 12, md: 16 }, width: '100%' }}>
         <AnimatePresence mode='wait'>
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
           >
             <Outlet />
           </motion.div>
         </AnimatePresence>
       </Box>
 
-      {/* Floating Glass Navigation Dock */}
+      {/* Responsive Floating Dock */}
       <Box
         component={motion.div}
-        initial={{ y: 100 }}
-        animate={{ y: 0 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.5, type: 'spring', stiffness: 200, damping: 20 }}
         sx={{
           position: 'fixed',
-          bottom: 32,
+          bottom: { xs: 24, md: 40 },
           left: '50%',
           transform: 'translateX(-50%)',
           zIndex: 1000,
           width: 'auto',
-          maxWidth: '90vw',
+          maxWidth: { xs: '95vw', md: '800px' },
         }}
+        style={{ x: "-50%" }}
       >
         <GlassCard
           intensity="strong"
           sx={{
-            p: 1,
+            p: 1.5,
             borderRadius: 50,
             display: 'flex',
             alignItems: 'center',
-            gap: 1,
-            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
-            border: '1px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(20px)',
-            background: 'rgba(22, 22, 22, 0.6)'
+            gap: { xs: 1, md: 2 },
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(25px)',
+            background: 'rgba(15, 23, 42, 0.6)'
           }}
         >
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <Tooltip key={item.text} title={item.text} placement="top" arrow>
-                <motion.div
-                  whileHover={{ scale: 1.1, y: -5 }}
-                  whileTap={{ scale: 0.9 }}
+                <Box
+                  component={motion.div}
+                  whileHover={{ scale: 1.15, y: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                  sx={{ position: 'relative' }}
                 >
                   <IconButton
                     onClick={() => navigate(item.path)}
+                    size={isMobile ? "medium" : "large"}
                     sx={{
-                      color: isActive ? '#4ECDC4' : 'rgba(255,255,255,0.6)',
-                      bgcolor: isActive ? 'rgba(78, 205, 196, 0.15)' : 'transparent',
-                      p: 1.5,
+                      color: isActive ? '#4ECDC4' : 'rgba(255,255,255,0.5)',
+                      bgcolor: isActive ? 'rgba(78, 205, 196, 0.1)' : 'transparent',
                       transition: 'all 0.3s ease',
                       '&:hover': {
                         color: '#4ECDC4',
-                        bgcolor: 'rgba(255,255,255,0.1)',
+                        bgcolor: 'rgba(255,255,255,0.05)',
                       }
                     }}
                   >
                     {item.icon}
                   </IconButton>
-                </motion.div>
+
+                  {/* Active Dot Indicator */}
+                  {isActive && (
+                    <Box
+                      component={motion.div}
+                      layoutId="activeDot"
+                      sx={{
+                        position: 'absolute',
+                        bottom: -4,
+                        left: '50%',
+                        width: 4,
+                        height: 4,
+                        borderRadius: '50%',
+                        bgcolor: '#4ECDC4',
+                        transform: 'translateX(-50%)'
+                      }}
+                    />
+                  )}
+                </Box>
               </Tooltip>
             );
           })}
 
-          <Box sx={{ width: 1, height: 24, bgcolor: 'rgba(255,255,255,0.1)', mx: 1 }} />
+          <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: { xs: 0.5, md: 1 } }} />
 
           <Tooltip title="Logout" placement="top" arrow>
-             <motion.div whileHover={{ scale: 1.1, rotate: 90 }} whileTap={{ scale: 0.9 }}>
-              <IconButton
-                onClick={handleLogout}
-                sx={{
-                  color: '#FF6B6B',
-                  p: 1.5,
-                  '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' }
-                }}
-              >
+            <Box component={motion.div} whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
+              <IconButton onClick={handleLogout} color="error">
                 <LogoutIcon />
               </IconButton>
-            </motion.div>
+            </Box>
           </Tooltip>
-
         </GlassCard>
       </Box>
     </Box>
