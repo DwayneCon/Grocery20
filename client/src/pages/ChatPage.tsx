@@ -1,3 +1,4 @@
+/* client/src/pages/ChatPage.tsx */
 import { useState, useRef, useEffect } from 'react';
 import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress } from '@mui/material';
 import { Send, SmartToy, Person, Mic } from '@mui/icons-material';
@@ -17,7 +18,7 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Greetings, Chef. I'm ready to design your perfect meal plan. What are you in the mood for?",
+      text: "Greetings. I'm ready to design your meal plan. What are you craving?",
       sender: 'ai',
       timestamp: new Date(),
     },
@@ -26,7 +27,6 @@ const ChatPage = () => {
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
@@ -43,12 +43,11 @@ const ChatPage = () => {
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI latency + stream effect
     setTimeout(() => {
       setIsTyping(false);
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        text: "I can certainly help with that. Based on your household preferences, I'd suggest...",
+        text: "I can certainly help with that. Based on your household preferences...",
         sender: 'ai',
         timestamp: new Date(),
       }]);
@@ -58,18 +57,17 @@ const ChatPage = () => {
   return (
     <AuroraBackground colors={['#2C3E50', '#4CA1AF', '#000000']} speed={25}>
       <Box sx={{
-        height: 'calc(100vh - 80px)',
+        height: '100vh',
         display: 'flex',
         flexDirection: 'column',
-        maxWidth: '1000px',
+        maxWidth: '1200px',
         mx: 'auto',
-        pt: 2,
         position: 'relative',
         zIndex: 2
       }}>
 
-        {/* Chat Container */}
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', px: { xs: 2, md: 4 }, pb: 12 }}>
+        {/* Messages Area */}
+        <Box sx={{ flexGrow: 1, overflowY: 'auto', px: { xs: 2, md: 6 }, pt: 4, pb: 20 }}>
           <List>
             <AnimatePresence>
               {messages.map((message) => (
@@ -78,7 +76,6 @@ const ChatPage = () => {
                   component={motion.li}
                   initial={{ opacity: 0, y: 20, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 100 }}
                   sx={{
                     display: 'flex',
                     justifyContent: message.sender === 'user' ? 'flex-end' : 'flex-start',
@@ -91,12 +88,11 @@ const ChatPage = () => {
                     flexDirection: message.sender === 'user' ? 'row-reverse' : 'row',
                     alignItems: 'flex-end',
                     gap: 2,
-                    maxWidth: '85%'
+                    maxWidth: { xs: '90%', md: '70%' }
                   }}>
                     <Avatar sx={{
                       bgcolor: message.sender === 'user' ? 'primary.main' : 'transparent',
                       border: message.sender === 'ai' ? '1px solid rgba(255,255,255,0.3)' : 'none',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
                     }}>
                       {message.sender === 'user' ? <Person /> : <SmartToy sx={{ color: '#4ECDC4' }} />}
                     </Avatar>
@@ -105,24 +101,15 @@ const ChatPage = () => {
                       intensity={message.sender === 'user' ? 'strong' : 'medium'}
                       sx={{
                         p: 2.5,
-                        borderRadius: message.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                        borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
                         background: message.sender === 'user'
-                          ? 'linear-gradient(135deg, rgba(132, 94, 194, 0.8), rgba(132, 94, 194, 0.4))'
+                          ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.8), rgba(44, 62, 80, 0.8))'
                           : 'rgba(255, 255, 255, 0.1)',
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(255,255,255,0.1)'
                       }}
                     >
-                      {message.sender === 'ai' ? (
-                        <Box
-                          sx={{ color: 'white', lineHeight: 1.6, fontSize: '1rem' }}
-                          dangerouslySetInnerHTML={{ __html: sanitizeAIContent(message.text) }}
-                        />
-                      ) : (
-                        <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
-                          {message.text}
-                        </Typography>
-                      )}
+                      <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
+                        {message.text}
+                      </Typography>
                     </GlassCard>
                   </Box>
                 </ListItem>
@@ -130,8 +117,8 @@ const ChatPage = () => {
             </AnimatePresence>
 
             {isTyping && (
-              <Box sx={{ display: 'flex', gap: 2, ml: 2, mt: 2 }}>
-                 <CircularProgress size={20} thickness={5} sx={{ color: '#4ECDC4' }} />
+              <Box sx={{ display: 'flex', gap: 2, ml: 2, mt: 2, alignItems: 'center' }}>
+                 <CircularProgress size={16} thickness={5} sx={{ color: '#4ECDC4' }} />
                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>AI is thinking...</Typography>
               </Box>
             )}
@@ -139,21 +126,24 @@ const ChatPage = () => {
           </List>
         </Box>
 
-        {/* Floating Input Area */}
+        {/* Floating Input - Positioned ABOVE the Nav Dock */}
         <Box sx={{
-          position: 'absolute',
-          bottom: 24,
-          left: 0,
-          right: 0,
-          px: { xs: 2, md: 4 }
+          position: 'fixed',
+          bottom: { xs: 100, md: 120 }, // Clears the nav dock
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: '100%',
+          maxWidth: '800px',
+          px: 2,
+          zIndex: 10
         }}>
-          <GlassCard intensity="strong" sx={{
+          <GlassCard intensity="ultra" sx={{
             p: '8px 16px',
             display: 'flex',
             alignItems: 'center',
             gap: 2,
             borderRadius: '50px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
           }}>
             <IconButton sx={{ color: '#4ECDC4' }}>
               <Mic />
@@ -175,9 +165,9 @@ const ChatPage = () => {
               onClick={handleSend}
               disabled={!input.trim()}
               sx={{
-                bgcolor: input.trim() ? 'primary.main' : 'rgba(255,255,255,0.1)',
-                color: 'white',
-                '&:hover': { bgcolor: 'primary.dark' },
+                bgcolor: input.trim() ? '#4ECDC4' : 'rgba(255,255,255,0.1)',
+                color: input.trim() ? 'black' : 'white',
+                '&:hover': { bgcolor: '#45b7af' },
                 transition: 'all 0.2s'
               }}
             >

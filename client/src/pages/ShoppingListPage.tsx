@@ -1,6 +1,7 @@
+/* client/src/pages/ShoppingListPage.tsx */
 import { useState } from 'react';
 import { Box, Typography, Button, Grid } from '@mui/material';
-import { Share, Add } from '@mui/icons-material';
+import { Share, Add, CheckCircle } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import NeuroCard from '../components/common/NeuroCard';
@@ -34,32 +35,37 @@ const ShoppingListPage = () => {
 
   return (
     <AuroraBackground colors={['#C7F464', '#4ECDC4', '#556270']} speed={20}>
-      <Box sx={{ p: { xs: 2, md: 4 }, position: 'relative', zIndex: 2, maxWidth: '1200px', mx: 'auto' }}>
+      <Box sx={{ p: { xs: 2, md: 6 }, position: 'relative', zIndex: 2, maxWidth: '100%', mx: 'auto' }}>
 
-        {/* Header */}
-        <GlassCard intensity="medium" sx={{ mb: 6, p: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box sx={{ mb: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <Box>
-            <Typography variant="h3" fontWeight="800" sx={{ color: 'white' }}>Shopping List</Typography>
-            <Typography sx={{ color: 'rgba(255,255,255,0.8)' }}>
-              {items.filter(i => !i.checked).length} items remaining
-            </Typography>
+             <Typography variant="h2" fontWeight="800" sx={{ color: 'white' }}>Shopping List</Typography>
+             <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+               {items.filter(i => !i.checked).length} items remaining
+             </Typography>
           </Box>
           <Button
             variant="contained"
             startIcon={<Share />}
-            sx={{ bgcolor: 'white', color: 'black', borderRadius: 4, fontWeight: 'bold', '&:hover': { bgcolor: '#f0f0f0' } }}
+            sx={{ bgcolor: 'white', color: 'black', borderRadius: 4, px: 3, fontWeight: 'bold' }}
           >
             Share
           </Button>
-        </GlassCard>
+        </Box>
 
-        {/* Masonry Grid of Categories */}
         <Grid container spacing={4}>
-          {categories.map((category) => (
-            <Grid item xs={12} md={6} key={category}>
-              <GlassCard intensity="light" sx={{ height: '100%', p: 0, overflow: 'hidden' }}>
-                <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.1)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+          {categories.map((category, i) => (
+            <Grid item xs={12} md={6} lg={4} key={category}>
+              <GlassCard
+                intensity="medium"
+                component={motion.div}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                sx={{ height: '100%', p: 0, overflow: 'hidden', borderRadius: '24px' }}
+              >
+                <Box sx={{ p: 3, bgcolor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: '#4ECDC4' }}>
                     {sanitizeText(category)}
                   </Typography>
                 </Box>
@@ -81,23 +87,16 @@ const ShoppingListPage = () => {
                         }}
                       >
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Box sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: '50%',
-                            border: '2px solid',
-                            borderColor: item.checked ? '#4ECDC4' : 'text.secondary',
-                            bgcolor: item.checked ? '#4ECDC4' : 'transparent',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                           <Box sx={{
+                            color: item.checked ? '#4ECDC4' : 'rgba(0,0,0,0.3)',
+                            display: 'flex'
                           }}>
-                            {item.checked && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ color: 'white' }}>✓</motion.div>}
+                            <CheckCircle />
                           </Box>
                           <Box>
                             <Typography
                               variant="body1"
-                              fontWeight="500"
+                              fontWeight="600"
                               sx={{
                                 textDecoration: item.checked ? 'line-through' : 'none',
                                 color: item.checked ? 'text.disabled' : 'text.primary'
@@ -105,7 +104,7 @@ const ShoppingListPage = () => {
                             >
                               {sanitizeText(item.name)}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" fontWeight="bold">
                               {sanitizeText(item.quantity)}
                             </Typography>
                           </Box>
@@ -119,26 +118,23 @@ const ShoppingListPage = () => {
           ))}
         </Grid>
 
-        {/* Floating Action Button */}
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          style={{ position: 'fixed', bottom: 32, right: 32, zIndex: 10 }}
-        >
-          <Button
+        {/* Floating Add Button */}
+        <Box sx={{ position: 'fixed', bottom: { xs: 100, md: 48 }, right: { xs: 24, md: 48 }, zIndex: 10 }}>
+           <Button
             variant="contained"
-            color="secondary"
             sx={{
               borderRadius: '50%',
               width: 64,
               height: 64,
               minWidth: 0,
-              boxShadow: '0 8px 32px rgba(255, 107, 107, 0.4)'
+              bgcolor: '#4ECDC4',
+              boxShadow: '0 8px 32px rgba(78, 205, 196, 0.4)',
+              '&:hover': { bgcolor: '#45b7af' }
             }}
           >
             <Add sx={{ fontSize: 32 }} />
           </Button>
-        </motion.div>
+        </Box>
 
       </Box>
     </AuroraBackground>
