@@ -6,6 +6,7 @@ import {
   updateRecipe,
   deleteRecipe,
   getMyRecipes,
+  saveRecipeFromMeal,
 } from './recipes.controller.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { validate, createRecipeSchema, updateRecipeSchema } from '../../middleware/validators.js';
@@ -20,6 +21,9 @@ router.get('/', getRecipes);
 
 // Get user's own recipes
 router.get('/my-recipes', getMyRecipes);
+
+// Save AI-generated recipe from meal to library
+router.post('/save-from-meal/:mealId', saveRecipeFromMeal);
 
 // Get single recipe
 router.get('/:recipeId', getRecipe);

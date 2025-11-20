@@ -306,22 +306,48 @@ Format the response as a structured JSON object with the following structure:
     {
       "day": "Monday",
       "meals": {
-        "breakfast": { "name": "...", "ingredients": [], "prepTime": "...", "cost": 0 },
-        "lunch": { "name": "...", "ingredients": [], "prepTime": "...", "cost": 0 },
-        "dinner": { "name": "...", "ingredients": [], "prepTime": "...", "cost": 0 }
+        "breakfast": {
+          "name": "...",
+          "description": "Brief appetizing description",
+          "ingredients": [
+            { "name": "ingredient", "amount": "1", "unit": "cup", "category": "Produce" }
+          ],
+          "instructions": [
+            "Step 1: Detailed instruction",
+            "Step 2: Next step with timing"
+          ],
+          "prepTime": 10,
+          "cookTime": 15,
+          "servings": ${finalHouseholdSize},
+          "difficulty": "easy|medium|hard",
+          "cost": 0,
+          "nutrition": {
+            "calories": 0,
+            "protein": 0,
+            "carbs": 0,
+            "fat": 0,
+            "fiber": 0
+          },
+          "tags": ["quick", "healthy", "kid-friendly"],
+          "tips": "Pro tip or substitution suggestion"
+        },
+        "lunch": { /* same structure */ },
+        "dinner": { /* same structure */ }
       }
     }
   ],
   "shoppingList": [
-    { "item": "...", "quantity": "...", "estimatedCost": 0, "category": "..." }
+    { "item": "...", "quantity": "...", "unit": "...", "estimatedCost": 0, "category": "Produce|Meat|Dairy|..." }
   ],
   "totalEstimatedCost": 0,
   "nutritionSummary": {
     "averageCaloriesPerDay": 0,
     "proteinGrams": 0,
     "carbsGrams": 0,
-    "fatGrams": 0
-  }
+    "fatGrams": 0,
+    "fiberGrams": 0
+  },
+  "notes": "Overall meal plan notes, batch cooking suggestions, leftover ideas"
 }`;
 
   try {

@@ -382,11 +382,110 @@ export const getMyRecipes = asyncHandler(async (req: AuthRequest, res: Response)
     ...recipe,
     instructions: parseJsonField(recipe.instructions, []),
     nutrition_info: parseJsonField(recipe.nutrition_info, {}),
+    tags: parseJsonField(recipe.tags, []),
   }));
 
   res.json({
     success: true,
     count: parsedRecipes.length,
     recipes: parsedRecipes,
+  });
+});
+
+// Save AI-generated recipe from meal plan to user's library
+export const saveRecipeFromMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { mealId } = req.params;
+  const userId = req.user?.id;
+
+  if (!userId) {
+    throw new AppError('User not authenticated', 401);
+  }
+
+  // Get the meal with its recipe data
+  const meals = await query<RowDataPacket[]>(
+    `SELECT mpm.notes, mp.household_id
+     FROM meal_plan_meals mpm
+     JOIN meal_plans mp ON mpm.meal_plan_id = mp.id
+     WHERE mpm.id = ?`,
+    [mealId]
+  );
+
+  if (meals.length === 0) {
+    throw new AppError('Meal not found', 404);
+  }
+
+  const meal = meals[0];
+
+  // Verify user has access
+  const userHousehold = await query<RowDataPacket[]>('SELECT household_id FROM users WHERE id = ?', [userId]);
+
+  if (userHousehold[0]?.household_id !== meal.household_id) {
+    throw new AppError('Access denied to this meal', 403);
+  }
+
+  // Parse the recipe data from notes
+  const recipeData = parseJsonField(meal.notes, {});
+
+  if (!recipeData.name || !recipeData.ingredients) {
+    throw new AppError('Invalid recipe data in meal', 400);
+  }
+
+  const recipeId = uuidv4();
+
+  // Create recipe
+  await query(
+    `INSERT INTO recipes
+    (id, name, description, prep_time, cook_time, servings, difficulty, instructions, nutrition, tags, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      recipeId,
+      recipeData.name,
+      recipeData.description || null,
+      recipeData.prepTime || null,
+      recipeData.cookTime || null,
+      recipeData.servings || 4,
+      recipeData.difficulty || 'medium',
+      JSON.stringify(recipeData.instructions || []),
+      JSON.stringify(recipeData.nutrition || {}),
+      JSON.stringify(recipeData.tags || []),
+      userId,
+    ]
+  );
+
+  // Add ingredients
+  if (recipeData.ingredients && Array.isArray(recipeData.ingredients)) {
+    for (const ingredient of recipeData.ingredients) {
+      // Get or create ingredient
+      let existingIngredients = await query<RowDataPacket[]>(
+        'SELECT id FROM ingredients WHERE LOWER(name) = LOWER(?)',
+        [ingredient.name]
+      );
+
+      let ingredientId: string;
+      if (existingIngredients.length > 0) {
+        ingredientId = existingIngredients[0].id;
+      } else {
+        ingredientId = uuidv4();
+        await query(
+          'INSERT INTO ingredients (id, name, category) VALUES (?, ?, ?)',
+          [ingredientId, ingredient.name, ingredient.category || null]
+        );
+      }
+
+      // Link ingredient to recipe
+      await query(
+        'INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit) VALUES (?, ?, ?, ?, ?)',
+        [uuidv4(), recipeId, ingredientId, ingredient.amount || 1, ingredient.unit || 'piece']
+      );
+    }
+  }
+
+  res.status(201).json({
+    success: true,
+    message: 'Recipe saved to your library',
+    recipe: {
+      id: recipeId,
+      name: recipeData.name,
+    },
   });
 });
