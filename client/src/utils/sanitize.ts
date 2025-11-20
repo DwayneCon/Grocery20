@@ -111,10 +111,3 @@ export const sanitizeUrl = (url: string): string => {
 export const createSafeHtml = (dirty: string) => {
   return { __html: sanitizeHtml(dirty) };
 };
-
-/**
- * React component helper to render safe text
- */
-export const SafeText: React.FC<{ content: string }> = ({ content }) => {
-  return <span>{sanitizeText(content)}</span>;
-};
