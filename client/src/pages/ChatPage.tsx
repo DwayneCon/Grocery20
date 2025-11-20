@@ -1,11 +1,12 @@
 /* client/src/pages/ChatPage.tsx */
 import { useState, useRef, useEffect } from 'react';
-import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress } from '@mui/material';
+import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar } from '@mui/material';
 import { Send, SmartToy, Person, Mic } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import { sanitizeAIContent, sanitizeInput } from '../utils/sanitize';
+import { aiService, ConversationMessage } from '../services/aiService';
 
 interface Message {
   id: string;
@@ -18,44 +19,96 @@ const ChatPage = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      text: "Greetings. I'm ready to design your meal plan. What are you craving?",
+      text: "Greetings. I'm NutriAI, your culinary companion. I'm ready to design your perfect meal plan. What are you craving today?",
       sender: 'ai',
       timestamp: new Date(),
     },
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
+
+    const sanitizedInput = sanitizeInput(input);
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: sanitizeInput(input),
+      text: sanitizedInput,
       sender: 'user',
       timestamp: new Date(),
     };
+
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setError(null);
 
-    setTimeout(() => {
+    try {
+      // Build conversation history for context
+      const conversationHistory: ConversationMessage[] = messages
+        .filter(msg => msg.id !== '1') // Exclude initial greeting
+        .map(msg => ({
+          role: msg.sender === 'user' ? 'user' : 'assistant',
+          content: msg.text
+        }));
+
+      // Call AI chat endpoint
+      const response = await aiService.chat({
+        message: sanitizedInput,
+        conversationHistory
+      });
+
       setIsTyping(false);
-      setMessages(prev => [...prev, {
+
+      const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: "I can certainly help with that. Based on your household preferences...",
+        text: sanitizeAIContent(response.response),
         sender: 'ai',
         timestamp: new Date(),
-      }]);
-    }, 1500);
+      };
+
+      setMessages(prev => [...prev, aiMsg]);
+
+      // Show warning if fallback model was used
+      if (response.fallback) {
+        setError('Using simplified AI model - responses may be less detailed');
+      }
+    } catch (err: any) {
+      setIsTyping(false);
+      const errorMessage = err.response?.data?.error || err.message || 'Failed to get AI response';
+      setError(errorMessage);
+
+      // Add error message to chat
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        text: `I apologize, but I'm having trouble connecting right now. ${errorMessage}. Please try again.`,
+        sender: 'ai',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    }
   };
 
   return (
     <AuroraBackground colors={['#2C3E50', '#4CA1AF', '#000000']} speed={25}>
+      {/* Error Snackbar */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="warning" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
+
       <Box sx={{
         height: '100vh',
         display: 'flex',
