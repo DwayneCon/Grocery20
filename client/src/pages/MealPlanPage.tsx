@@ -1,64 +1,92 @@
-import { Box, Typography, Grid, Card, CardContent, CardMedia, Chip } from '@mui/material';
+import { Box, Typography, Grid, Chip, IconButton } from '@mui/material';
+import { AccessTime, LocalFireDepartment, Refresh } from '@mui/icons-material';
+import { motion } from 'framer-motion';
+import AuroraBackground from '../components/common/AuroraBackground';
+import GlassCard from '../components/common/GlassCard';
 import { sanitizeText } from '../utils/sanitize';
 
 const MealPlanPage = () => {
-  const mockMeals = [
-    {
-      day: 'Monday',
-      meals: [
-        { type: 'Breakfast', name: 'Oatmeal with Berries', image: '', time: '15 min' },
-        { type: 'Lunch', name: 'Chicken Caesar Salad', image: '', time: '20 min' },
-        { type: 'Dinner', name: 'Baked Salmon with Vegetables', image: '', time: '35 min' },
-      ],
-    },
-    // Add more days as needed
-  ];
+  // Mock data structure
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+  const getMockMeal = (day: string, type: string) => {
+    const meals = {
+      Breakfast: ['Avocado Toast & Eggs', 'Greek Yogurt Parfait', 'Protein Pancakes'],
+      Lunch: ['Grilled Chicken Salad', 'Turkey Wrap', 'Quinoa Bowl'],
+      Dinner: ['Salmon with Asparagus', 'Pasta Primavera', 'Steak with Roasted Vegetables']
+    };
+    const mealType = type as keyof typeof meals;
+    return meals[mealType][Math.floor(Math.random() * meals[mealType].length)];
+  };
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-        Weekly Meal Plan
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        Your AI-generated meal plan for this week
-      </Typography>
+    <AuroraBackground colors={['#FF6B6B', '#556270', '#FF8E8E']} speed={30}>
+      <Box sx={{ p: { xs: 2, md: 4 }, position: 'relative', zIndex: 2, maxWidth: '1600px', mx: 'auto' }}>
 
-      {mockMeals.map((day, index) => (
-        <Box key={index} sx={{ mb: 4 }}>
-          <Typography variant="h5" gutterBottom fontWeight="bold" color="primary">
-            {sanitizeText(day.day)}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6 }}>
+          <Typography variant="h2" fontWeight="900" sx={{ color: 'white', textShadow: '0 4px 10px rgba(0,0,0,0.2)' }}>
+            Weekly Menu
           </Typography>
-          <Grid container spacing={2}>
-            {day.meals.map((meal, mealIndex) => (
-              <Grid item xs={12} md={4} key={mealIndex}>
-                <Card>
-                  <CardMedia
-                    component="div"
+          <GlassCard intensity="light" hover={true} sx={{ borderRadius: '50%', p: 1 }}>
+            <IconButton sx={{ color: 'white' }}><Refresh /></IconButton>
+          </GlassCard>
+        </Box>
+
+        {days.map((day, i) => (
+          <Box key={day} sx={{ mb: 6 }}>
+            <Typography variant="h5" sx={{ color: 'rgba(255,255,255,0.9)', mb: 2, fontWeight: 'bold', pl: 1 }}>
+              {day}
+            </Typography>
+
+            <Grid container spacing={3}>
+              {['Breakfast', 'Lunch', 'Dinner'].map((type, j) => (
+                <Grid item xs={12} md={4} key={type}>
+                  <GlassCard
+                    intensity="medium"
+                    component={motion.div}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: (i * 0.1) + (j * 0.05) }}
+                    whileHover={{ y: -8, scale: 1.02 }}
                     sx={{
-                      height: 140,
-                      bgcolor: 'grey.300',
+                      height: '100%',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer'
                     }}
                   >
-                    <Typography variant="h6" color="text.secondary">
-                      {sanitizeText(meal.type)}
-                    </Typography>
-                  </CardMedia>
-                  <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      {sanitizeText(meal.name)}
-                    </Typography>
-                    <Chip label={meal.time} size="small" color="primary" />
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      ))}
-    </Box>
+                    <Box>
+                      <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2 }}>
+                        {type.toUpperCase()}
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', mb: 2 }}>
+                        {sanitizeText(getMockMeal(day, type))}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Chip
+                        icon={<AccessTime sx={{ "&&": { color: 'white' } }} />}
+                        label="15m"
+                        size="small"
+                        sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(4px)' }}
+                      />
+                      <Chip
+                        icon={<LocalFireDepartment sx={{ "&&": { color: '#FFE66D' } }} />}
+                        label="450 kcal"
+                        size="small"
+                        sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'white', backdropFilter: 'blur(4px)' }}
+                      />
+                    </Box>
+                  </GlassCard>
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+        ))}
+      </Box>
+    </AuroraBackground>
   );
 };
 
