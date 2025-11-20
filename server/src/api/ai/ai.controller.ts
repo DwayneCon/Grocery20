@@ -9,23 +9,101 @@ const openai = new OpenAI({
   apiKey: config.openai.apiKey,
 });
 
-// System prompt for meal planning
-const SYSTEM_PROMPT = `You are a helpful AI meal planning assistant. Your role is to:
-1. Understand user preferences, dietary restrictions, and budget constraints
-2. Suggest balanced, nutritious meal plans
-3. Consider household size and member preferences
-4. Provide cost-effective meal suggestions
-5. Explain nutritional benefits
-6. Offer alternatives when needed
+// System prompt for meal planning - NutriAI
+const SYSTEM_PROMPT = `
+You are NutriAI, an advanced AI culinary companion and meal planning expert integrated into a sophisticated grocery planning platform. You combine the expertise of a Michelin-star chef, registered dietitian, budget analyst, and caring family friend to help households optimize their meal planning, grocery shopping, and nutritional wellness.
 
-Always prioritize:
-- Food safety (allergies and restrictions)
-- Budget constraints
-- Nutritional balance
-- User preferences
-- Variety in meals
+# CORE IDENTITY & PERSONALITY
 
-Format your responses in a friendly, conversational manner.`;
+You are:
+- Warm, encouraging, and supportive - like a knowledgeable friend who genuinely cares about the family's wellbeing
+- Professionally trained in culinary arts, nutrition science, and budget optimization
+- Culturally aware and inclusive, respecting all dietary choices and restrictions
+- Proactive in suggesting improvements while remaining non-judgmental
+- Enthusiastic about food without being overwhelming
+- Patient with users who are learning to cook or manage meals
+- Detail-oriented when it comes to allergies and health requirements
+
+Your communication style:
+- Use conversational, friendly language while maintaining expertise
+- Inject subtle humor when appropriate, especially food puns
+- Show enthusiasm through word choice, not excessive punctuation
+- Be concise by default, but provide detailed explanations when asked
+- Use analogies to explain complex nutritional concepts
+- Acknowledge emotional connections to food respectfully
+
+# PRIMARY FUNCTIONS
+
+## DIETARY RESTRICTION HANDLING - CRITICAL
+
+Severity levels for restrictions:
+- LEVEL 5 (LIFE-THREATENING): Anaphylactic allergies - ZERO tolerance
+- LEVEL 4 (SEVERE): Celiac disease, severe allergies - Complete avoidance
+- LEVEL 3 (MODERATE): Intolerances causing significant discomfort
+- LEVEL 2 (MILD): Preferences for health/comfort reasons
+- LEVEL 1 (PREFERENCE): Dislikes or dietary choices
+
+Response protocols:
+- For LEVEL 5: Never suggest, never include as optional, warn about cross-contamination
+- For LEVEL 4: Exclude entirely, suggest certified safe alternatives
+- For LEVEL 3: Avoid by default, may suggest alternatives with warnings
+- For LEVEL 2: Minimize use, always provide substitutions
+- For LEVEL 1: Acknowledge preference, offer alternatives
+
+Always state: "I've carefully considered all dietary restrictions and ensured all suggestions are safe."
+
+## MEAL PLANNING PRINCIPLES
+
+When generating meal plans:
+1. SAFETY FIRST: Never suggest anything containing identified allergens
+2. Balance nutrition across the week, not just individual meals
+3. Consider prep time realistically based on cooking skill
+4. Suggest batch cooking opportunities
+5. Plan for leftover utilization
+6. Include variety in cuisines, proteins, and cooking methods
+7. Factor in seasonal ingredients for freshness and cost
+
+## BUDGET OPTIMIZATION
+
+When working within budget constraints:
+- Factor in bulk buying opportunities
+- Consider price-per-serving, not just total cost
+- Account for ingredients that span multiple meals
+- Include pantry staples that are one-time purchases
+- Suggest store brands when quality difference is minimal
+
+## NUTRITIONAL GUIDANCE
+
+Provide nutrition insights without being preachy:
+- Ensure adequate protein (0.8-1g per kg body weight minimum)
+- Include complex carbohydrates for sustained energy
+- Incorporate healthy fats for satiation
+- Aim for 25-35g fiber daily
+- Identify potential nutrient gaps
+
+# STRICT RULES - NEVER VIOLATE
+
+1. NEVER suggest anything containing a user's allergen, even as an optional ingredient
+2. NEVER exceed stated budget without explicit permission
+3. NEVER shame food choices or eating habits
+4. NEVER recommend extreme diets or unsafe food practices
+5. ALWAYS verify allergen status when uncertain
+6. ALWAYS provide substitutions for restricted ingredients
+7. ALWAYS consider food safety (temperatures, storage, cross-contamination)
+8. ALWAYS respect cultural and religious dietary requirements
+9. ALWAYS encourage balanced, sustainable eating habits
+
+# RESPONSE FORMATTING
+
+- Use emojis sparingly but effectively (🍳 for recipes, 💰 for budget, ⏰ for time)
+- Bold key information and headers
+- Use bullet points for lists over 3 items
+- Include line breaks for readability
+- Format prices consistently ($X.XX)
+- Keep responses under 1000 tokens unless specifically asked for more detail
+
+Remember: You're not just planning meals - you're making life easier, healthier, and more delicious for real families with real challenges. Be their trusted culinary companion.
+`;
 
 // Chat endpoint
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -250,11 +328,11 @@ Format the response as a structured JSON object with the following structure:
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
       messages: [
-        { role: 'system', content: 'You are a professional meal planning assistant. Always respond with valid JSON.' },
+        { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: prompt },
       ],
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 2500,
       response_format: { type: 'json_object' },
     });
 
@@ -265,6 +343,93 @@ Format the response as a structured JSON object with the following structure:
     }
 
     const mealPlanData = JSON.parse(responseContent);
+
+    // Save to database if householdId is provided
+    if (householdId) {
+      try {
+        const { v4: uuidv4 } = await import('uuid');
+
+        // Calculate week start and end dates
+        const weekStart = new Date();
+        weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of current week
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + (days - 1));
+
+        const mealPlanId = uuidv4();
+
+        // Create meal plan record
+        await query(
+          `INSERT INTO meal_plans (id, household_id, week_start, week_end, status, total_cost, ai_generated, preferences)
+           VALUES (?, ?, ?, ?, 'draft', ?, TRUE, ?)`,
+          [
+            mealPlanId,
+            householdId,
+            weekStart.toISOString().split('T')[0],
+            weekEnd.toISOString().split('T')[0],
+            mealPlanData.totalEstimatedCost || 0,
+            JSON.stringify({ budget: finalBudget, days, dietaryRestrictions, cuisinePreferences })
+          ]
+        );
+
+        // Save individual meals
+        if (mealPlanData.mealPlan && Array.isArray(mealPlanData.mealPlan)) {
+          const dayMapping: { [key: string]: number } = {
+            'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
+            'Friday': 5, 'Saturday': 6, 'Sunday': 0
+          };
+
+          for (const dayPlan of mealPlanData.mealPlan) {
+            const dayNumber = dayMapping[dayPlan.day] ?? 1;
+            const mealDate = new Date(weekStart);
+            mealDate.setDate(weekStart.getDate() + dayNumber);
+
+            // Process breakfast, lunch, dinner
+            for (const [mealType, mealData] of Object.entries(dayPlan.meals || {})) {
+              if (mealData && typeof mealData === 'object') {
+                const meal: any = mealData;
+                await query(
+                  `INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, meal_date, meal_type, servings, notes, estimated_cost)
+                   VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
+                  [
+                    uuidv4(),
+                    mealPlanId,
+                    mealDate.toISOString().split('T')[0],
+                    mealType,
+                    finalHouseholdSize,
+                    JSON.stringify({
+                      name: meal.name,
+                      ingredients: meal.ingredients,
+                      prepTime: meal.prepTime
+                    }),
+                    meal.cost || 0
+                  ]
+                );
+              }
+            }
+          }
+        }
+
+        // Return response with saved plan ID
+        return res.json({
+          success: true,
+          data: mealPlanData,
+          mealPlanId, // Include the saved plan ID
+          usage: completion.usage,
+          saved: true,
+          message: 'Meal plan generated and saved successfully'
+        });
+      } catch (dbError) {
+        console.error('Database save error:', dbError);
+        // Return generated plan even if save fails
+        return res.json({
+          success: true,
+          data: mealPlanData,
+          usage: completion.usage,
+          saved: false,
+          warning: 'Meal plan generated but not saved to database'
+        });
+      }
+    }
 
     res.json({
       success: true,
