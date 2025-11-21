@@ -299,20 +299,22 @@ const ChatPage = () => {
               aria-label="Chat message input"
             />
             <Tooltip title="Send message" arrow>
-              <IconButton
-                onClick={() => handleSend()}
-                disabled={!input.trim()}
-                sx={{
-                  bgcolor: input.trim() ? '#4ECDC4' : 'rgba(255,255,255,0.1)',
-                  color: input.trim() ? 'black' : 'white',
-                  '&:hover': { bgcolor: input.trim() ? '#45b7af' : 'rgba(255,255,255,0.15)' },
-                  transition: 'all 0.2s',
-                  '&:disabled': { opacity: 0.5 }
-                }}
-                aria-label="Send message"
-              >
-                <Send fontSize="small" />
-              </IconButton>
+              <span>
+                <IconButton
+                  onClick={() => handleSend()}
+                  disabled={!input.trim()}
+                  sx={{
+                    bgcolor: input.trim() ? '#4ECDC4' : 'rgba(255,255,255,0.1)',
+                    color: input.trim() ? 'black' : 'white',
+                    '&:hover': { bgcolor: input.trim() ? '#45b7af' : 'rgba(255,255,255,0.15)' },
+                    transition: 'all 0.2s',
+                    '&:disabled': { opacity: 0.5 }
+                  }}
+                  aria-label="Send message"
+                >
+                  <Send fontSize="small" />
+                </IconButton>
+              </span>
             </Tooltip>
           </GlassCard>
         </Box>

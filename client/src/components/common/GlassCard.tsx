@@ -15,11 +15,10 @@ const GlassCard = ({
   hover = true,
   intensity = 'medium',
   noBorder = false,
-  sx = {}, // Default to empty object
+  sx = {}, // Default to empty object to prevent spread errors
   ...props
 }: GlassCardProps) => {
 
-  // Define styles with strict string values for colors
   const intensityMap = {
     light: {
       background: 'rgba(255, 255, 255, 0.03)',
@@ -47,17 +46,17 @@ const GlassCard = ({
     }
   };
 
-  // Safe fallback if intensity is invalid
+  // Safe fallback for style
   const baseStyle = intensityMap[intensity] || intensityMap['medium'];
 
-  // Create a clean style object
+  // Construct final style object safely
   const finalStyle = {
     ...baseStyle,
     ...(noBorder && { border: 'none' }),
     borderRadius: '24px',
-    padding: '24px', // Explicit px string
-    position: 'relative' as const,
-    overflow: 'hidden' as const,
+    padding: '24px',
+    position: 'relative',
+    overflow: 'hidden',
     ...sx
   };
 
@@ -66,10 +65,34 @@ const GlassCard = ({
       component={motion.div}
       whileHover={hover ? { y: -5 } : undefined}
       whileTap={hover ? { scale: 0.98 } : undefined}
+      // @ts-ignore - Motion props vs Box props typing
       sx={finalStyle}
       {...props}
     >
-      {children}
+      {/* Shine Effect on Hover */}
+      {hover && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.03) 25%, transparent 30%)',
+            transform: 'translateX(-100%)',
+            transition: 'transform 0.6s',
+            zIndex: 0,
+            pointerEvents: 'none',
+            '.MuiBox-root:hover &': {
+              transform: 'translateX(100%)',
+              transition: 'transform 0.8s',
+            }
+          }}
+        />
+      )}
+      <Box sx={{ position: 'relative', zIndex: 1 }}>
+        {children}
+      </Box>
     </Box>
   );
 };

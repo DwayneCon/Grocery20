@@ -3,6 +3,15 @@ import OpenAI from 'openai';
 import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import config from '../../config/env.js';
+import {
+  saveConversationMessage,
+  getConversationHistory,
+  getConversationStats,
+  clearUserHistory,
+} from './conversationHistory.js';
+import { saveMealPlanWithRecipes } from './recipeHelper.js';
+import { v4 as uuidv4 } from 'uuid';
+import { query } from '../../config/database.js';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -105,9 +114,9 @@ Provide nutrition insights without being preachy:
 Remember: You're not just planning meals - you're making life easier, healthier, and more delicious for real families with real challenges. Be their trusted culinary companion.
 `;
 
-// Chat endpoint
+// Chat endpoint with conversation history persistence
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { message, conversationHistory = [] } = req.body;
+  const { message, householdId, useHistory = true } = req.body;
 
   if (!message || typeof message !== 'string') {
     throw new AppError('Message is required', 400);
@@ -117,14 +126,27 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
     throw new AppError('OpenAI API key not configured', 500);
   }
 
+  const userId = req.user!.id;
+  let conversationContext: OpenAI.Chat.ChatCompletionMessageParam[] = [];
+
   try {
-    // Build messages array
+    // Load conversation history from database if enabled
+    if (useHistory) {
+      const history = await getConversationHistory(userId, 20, householdId);
+
+      // Convert database history to OpenAI format (skip system messages)
+      conversationContext = history
+        .filter(msg => msg.role !== 'system')
+        .map(msg => ({
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+        }));
+    }
+
+    // Build messages array with system prompt, history, and new message
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: 'system', content: SYSTEM_PROMPT },
-      ...conversationHistory.map((msg: any) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      })),
+      ...conversationContext,
       { role: 'user', content: message },
     ];
 
@@ -137,10 +159,32 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
     });
 
     const aiResponse = completion.choices[0]?.message?.content || 'I apologize, I couldn\'t generate a response.';
+    const tokensUsed = completion.usage?.total_tokens || 0;
+
+    // Save user message to database
+    await saveConversationMessage({
+      userId,
+      householdId,
+      role: 'user',
+      content: message,
+      tokensUsed: completion.usage?.prompt_tokens || 0,
+      model: config.openai.model,
+    });
+
+    // Save AI response to database
+    await saveConversationMessage({
+      userId,
+      householdId,
+      role: 'assistant',
+      content: aiResponse,
+      tokensUsed: completion.usage?.completion_tokens || 0,
+      model: config.openai.model,
+    });
 
     res.json({
       response: aiResponse,
       usage: completion.usage,
+      historyLength: conversationContext.length,
     });
   } catch (error: any) {
     console.error('OpenAI API error:', error);
@@ -160,9 +204,28 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
 
         const fallbackResponse = fallbackCompletion.choices[0]?.message?.content;
 
+        // Save to history even with fallback
+        await saveConversationMessage({
+          userId,
+          householdId,
+          role: 'user',
+          content: message,
+          model: config.openai.fallbackModel,
+        });
+
+        await saveConversationMessage({
+          userId,
+          householdId,
+          role: 'assistant',
+          content: fallbackResponse || 'Failed to generate response',
+          tokensUsed: fallbackCompletion.usage?.total_tokens || 0,
+          model: config.openai.fallbackModel,
+        });
+
         res.json({
           response: fallbackResponse,
           fallback: true,
+          historyLength: conversationContext.length,
         });
         return;
       } catch (fallbackError) {
@@ -373,8 +436,6 @@ Format the response as a structured JSON object with the following structure:
     // Save to database if householdId is provided
     if (householdId) {
       try {
-        const { v4: uuidv4 } = await import('uuid');
-
         // Calculate week start and end dates
         const weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of current week
@@ -397,52 +458,30 @@ Format the response as a structured JSON object with the following structure:
           ]
         );
 
-        // Save individual meals
-        if (mealPlanData.mealPlan && Array.isArray(mealPlanData.mealPlan)) {
-          const dayMapping: { [key: string]: number } = {
-            'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4,
-            'Friday': 5, 'Saturday': 6, 'Sunday': 0
-          };
+        // Save all meals with proper recipe records
+        const savedMeals = await saveMealPlanWithRecipes(
+          mealPlanData,
+          mealPlanId,
+          householdId,
+          req.user!.id,
+          weekStart,
+          finalHouseholdSize
+        );
 
-          for (const dayPlan of mealPlanData.mealPlan) {
-            const dayNumber = dayMapping[dayPlan.day] ?? 1;
-            const mealDate = new Date(weekStart);
-            mealDate.setDate(weekStart.getDate() + dayNumber);
-
-            // Process breakfast, lunch, dinner
-            for (const [mealType, mealData] of Object.entries(dayPlan.meals || {})) {
-              if (mealData && typeof mealData === 'object') {
-                const meal: any = mealData;
-                await query(
-                  `INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, meal_date, meal_type, servings, notes, estimated_cost)
-                   VALUES (?, ?, NULL, ?, ?, ?, ?, ?)`,
-                  [
-                    uuidv4(),
-                    mealPlanId,
-                    mealDate.toISOString().split('T')[0],
-                    mealType,
-                    finalHouseholdSize,
-                    JSON.stringify({
-                      name: meal.name,
-                      ingredients: meal.ingredients,
-                      prepTime: meal.prepTime
-                    }),
-                    meal.cost || 0
-                  ]
-                );
-              }
-            }
-          }
-        }
-
-        // Return response with saved plan ID
+        // Return response with saved plan ID and saved meals
         return res.json({
           success: true,
           data: mealPlanData,
-          mealPlanId, // Include the saved plan ID
+          mealPlanId,
+          savedMealsCount: savedMeals.length,
+          savedMeals: savedMeals.map(m => ({
+            type: m.mealType,
+            date: m.date,
+            recipeId: m.recipeId
+          })),
           usage: completion.usage,
           saved: true,
-          message: 'Meal plan generated and saved successfully'
+          message: `Meal plan generated and saved successfully with ${savedMeals.length} recipes`
         });
       } catch (dbError) {
         console.error('Database save error:', dbError);
@@ -452,6 +491,7 @@ Format the response as a structured JSON object with the following structure:
           data: mealPlanData,
           usage: completion.usage,
           saved: false,
+          error: dbError instanceof Error ? dbError.message : 'Unknown error',
           warning: 'Meal plan generated but not saved to database'
         });
       }
@@ -466,4 +506,29 @@ Format the response as a structured JSON object with the following structure:
     console.error('Meal plan generation error:', error);
     throw new AppError('Failed to generate meal plan', 500);
   }
+});
+
+// Get conversation statistics
+export const getStats = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+
+  const stats = await getConversationStats(userId);
+
+  res.json({
+    success: true,
+    data: stats,
+  });
+});
+
+// Clear user conversation history
+export const clearHistory = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+
+  const deletedCount = await clearUserHistory(userId);
+
+  res.json({
+    success: true,
+    message: `Deleted ${deletedCount} conversation messages`,
+    deletedCount,
+  });
 });
