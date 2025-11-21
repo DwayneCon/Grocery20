@@ -246,14 +246,48 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
       { role: 'user', content: message },
     ];
 
-    // Detect if user is requesting a meal plan (needs more tokens)
+    // Detect if user is requesting a meal plan (needs more tokens and specific formatting)
     const isMealPlanRequest = /\b(meal plan|week of meals|plan.*meals?|suggest.*meals?|menu for|what should.*eat)\b/i.test(message);
-    const maxTokens = isMealPlanRequest ? 2500 : 1000;
+    const maxTokens = isMealPlanRequest ? 3000 : 1000;
+
+    // Add formatting instructions for meal plans
+    const messagesWithFormatting = isMealPlanRequest
+      ? [
+          ...messages.slice(0, -1), // All messages except the last user message
+          {
+            role: 'user' as const,
+            content: `${message}
+
+IMPORTANT FORMATTING: For each meal, you MUST use this exact structure:
+
+🍽️ **[Meal Name]**
+⏱️ Prep: [time] | Cook: [time]
+💰 Cost per serving: ~$[amount]
+✨ Why this works: [brief reason]
+
+**Ingredients:**
+- [ingredient 1]
+- [ingredient 2]
+...
+
+**Instructions:**
+1. [Step 1]
+2. [Step 2]
+...
+
+**Pro Tips:**
+- [tip 1]
+- [tip 2]
+
+Group meals by type (Breakfast, Lunch, Dinner) with headers. Be concise but include all sections.`
+          }
+        ]
+      : messages;
 
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
-      messages,
+      messages: messagesWithFormatting,
       temperature: 0.8,
       max_tokens: maxTokens,
       presence_penalty: 0.3,

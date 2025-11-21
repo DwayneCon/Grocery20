@@ -58,10 +58,13 @@ export function parseMealPlan(text: string): ParsedMealPlan {
     }
 
     // Detect meal header patterns
-    // Pattern 1: "Day/Meal:" or "Monday Dinner:" or "Breakfast (Day 1):"
-    const dayMealMatch = line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)?\s*(Breakfast|Lunch|Dinner|Snack)?:?\s*$/i);
+    // Pattern 1: "Breakfast:", "Lunch:", "Dinner:" (standalone)
+    const mealTypeHeaderMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*$/i);
 
-    // Pattern 2: "## Recipe Name" or "# Recipe Name"
+    // Pattern 2: "Monday: Italian Night" or "Tuesday: Taco Tuesday"
+    const dayThemeMatch = line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):\s*(.+)$/i);
+
+    // Pattern 3: "## Recipe Name" or "# Recipe Name"
     const recipeHeaderMatch = line.match(/^#{1,3}\s+(.+)$/);
 
     // Check if this looks like a meal name (has emoji or is bold)
@@ -69,8 +72,17 @@ export function parseMealPlan(text: string): ParsedMealPlan {
                             line.match(/^\*\*(.+)\*\*$/) ||
                             recipeHeaderMatch;
 
+    // Handle meal type headers (like "Breakfast:" or "Lunch:")
+    if (mealTypeHeaderMatch) {
+      // This is just a category header, not a meal itself
+      // Store the meal type for the next meal we find
+      const nextMealType = mealTypeHeaderMatch[1];
+      // Skip this line but remember the type
+      continue;
+    }
+
     // Detect start of a meal section
-    if (possibleMealName || dayMealMatch) {
+    if (possibleMealName || dayThemeMatch) {
       // Save previous meal if exists
       if (currentMeal && currentMeal.name) {
         meals.push(currentMeal);
@@ -83,6 +95,14 @@ export function parseMealPlan(text: string): ParsedMealPlan {
       // Extract meal name
       let mealName = '';
       let emoji = '';
+      let dayName = '';
+
+      if (dayThemeMatch) {
+        // "Monday: Italian Night" format
+        dayName = dayThemeMatch[1];
+        // Don't use the theme as the meal name, let the next line with emoji be the name
+        continue;
+      }
 
       if (possibleMealName) {
         if (possibleMealName[2]) {
@@ -93,16 +113,19 @@ export function parseMealPlan(text: string): ParsedMealPlan {
         }
       }
 
+      // Look ahead to next line to determine meal type from context
+      const lookAheadContext = lines[i - 1]?.toLowerCase() || '';
+      let mealType = '';
+      if (lookAheadContext.includes('breakfast')) mealType = 'breakfast';
+      else if (lookAheadContext.includes('lunch')) mealType = 'lunch';
+      else if (lookAheadContext.includes('dinner')) mealType = 'dinner';
+
       currentMeal = {
         name: mealName,
         emoji: emoji || '🍽️',
+        day: dayName || undefined,
+        mealType: mealType || undefined,
       };
-
-      // Check if day/meal type is specified
-      if (dayMealMatch) {
-        currentMeal.day = dayMealMatch[1];
-        currentMeal.mealType = dayMealMatch[2];
-      }
 
       continue;
     }
