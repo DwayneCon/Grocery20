@@ -21,6 +21,8 @@ import mealPlanRoutes from './api/meals/mealPlans.routes.js';
 import shoppingRoutes from './api/shopping/shopping.routes.js';
 import budgetRoutes from './api/budget/budget.routes.js';
 import nutritionRoutes from './api/nutrition/nutrition.routes.js';
+import inventoryRoutes from './api/inventory/inventory.routes.js';
+import storesRoutes from './api/stores/stores.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -58,6 +60,8 @@ app.use('/api/meal-plans', mealPlanRoutes);
 app.use('/api/shopping', shoppingRoutes);
 app.use('/api/budget', budgetRoutes);
 app.use('/api/nutrition', nutritionRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/stores', storesRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

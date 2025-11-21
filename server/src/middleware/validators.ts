@@ -189,6 +189,51 @@ export const compareNutritionGoalsSchema = Joi.object({
   }).required(),
 });
 
+// Inventory tracking validation schemas
+export const addInventoryItemSchema = Joi.object({
+  householdId: Joi.string().uuid().required(),
+  ingredientId: Joi.string().uuid().optional(),
+  name: Joi.string().min(1).max(255).required(),
+  quantity: Joi.number().positive().required(),
+  unit: Joi.string().min(1).max(50).required(),
+  purchaseDate: Joi.date().optional(),
+  expirationDate: Joi.date().optional(),
+  location: Joi.string().valid('Fridge', 'Pantry', 'Freezer').optional(),
+});
+
+export const updateInventoryItemSchema = Joi.object({
+  quantity: Joi.number().positive().optional(),
+  unit: Joi.string().min(1).max(50).optional(),
+  expirationDate: Joi.date().optional(),
+  location: Joi.string().valid('Fridge', 'Pantry', 'Freezer').optional(),
+  status: Joi.string().valid('fresh', 'expiring_soon', 'expired').optional(),
+});
+
+// Store integration validation schemas
+export const addStoreProductSchema = Joi.object({
+  ingredientId: Joi.string().uuid().optional(),
+  storeName: Joi.string().min(1).max(255).required(),
+  productName: Joi.string().min(1).max(255).required(),
+  brand: Joi.string().max(255).optional(),
+  price: Joi.number().positive().required(),
+  unit: Joi.string().min(1).max(50).required(),
+  quantity: Joi.number().positive().required(),
+  onSale: Joi.boolean().optional(),
+  salePrice: Joi.number().positive().optional(),
+  url: Joi.string().uri().max(500).optional(),
+});
+
+export const comparePricesSchema = Joi.object({
+  items: Joi.array().items(
+    Joi.object({
+      ingredientId: Joi.string().uuid().optional(),
+      name: Joi.string().required(),
+      quantity: Joi.number().positive().required(),
+      unit: Joi.string().required(),
+    })
+  ).min(1).required(),
+});
+
 // Shopping list validation schemas
 export const createShoppingListSchema = Joi.object({
   householdId: Joi.string().uuid().required(),
