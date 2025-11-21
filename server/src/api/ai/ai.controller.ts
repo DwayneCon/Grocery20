@@ -14,8 +14,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
 
 // Initialize OpenAI client
+// Note: Don't include organization if it causes auth issues
 const openai = new OpenAI({
   apiKey: config.openai.apiKey,
+  // organization: config.openai.orgId, // Commented out - causes mismatched_organization error
 });
 
 // System prompt for meal planning - NutriAI
@@ -187,11 +189,18 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
       historyLength: conversationContext.length,
     });
   } catch (error: any) {
-    console.error('OpenAI API error:', error);
+    console.error('OpenAI API error:', {
+      message: error.message,
+      status: error.status,
+      type: error.type,
+      code: error.code,
+      response: error.response?.data || error.response,
+    });
 
     // Fallback to simpler model if primary fails
     if (config.openai.fallbackModel) {
       try {
+        console.log(`Attempting fallback with model: ${config.openai.fallbackModel}`);
         const fallbackCompletion = await openai.chat.completions.create({
           model: config.openai.fallbackModel,
           messages: [

@@ -60,8 +60,9 @@ export async function getConversationHistory(
     params.push(householdId);
   }
 
-  sql += ` ORDER BY created_at DESC LIMIT ?`;
-  params.push(limit);
+  // LIMIT must be inlined (not a placeholder) for MySQL
+  const limitNum = parseInt(String(limit), 10) || 20;
+  sql += ` ORDER BY created_at DESC LIMIT ${limitNum}`;
 
   const messages = await query(sql, params);
 
@@ -84,10 +85,12 @@ export async function getConversationHistory(
  * @param daysToKeep - Number of days to keep (default: 30)
  */
 export async function cleanupOldHistory(userId: string, daysToKeep: number = 30): Promise<number> {
+  // INTERVAL must be inlined (not a placeholder) for MySQL
+  const daysNum = parseInt(String(daysToKeep), 10) || 30;
   const result: any = await query(
     `DELETE FROM conversation_history
-     WHERE user_id = ? AND created_at < DATE_SUB(NOW(), INTERVAL ? DAY)`,
-    [userId, daysToKeep]
+     WHERE user_id = ? AND created_at < DATE_SUB(NOW(), INTERVAL ${daysNum} DAY)`,
+    [userId]
   );
 
   return result.affectedRows || 0;
