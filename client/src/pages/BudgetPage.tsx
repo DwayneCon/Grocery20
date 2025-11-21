@@ -54,6 +54,12 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+// Helper function to safely convert to number
+const toNumber = (value: any): number => {
+  const num = parseFloat(value);
+  return isNaN(num) ? 0 : num;
+};
+
 const BudgetPage = () => {
   const { mode } = useTheme();
   const household = useSelector((state: RootState) => state.household.currentHousehold);
@@ -255,9 +261,9 @@ const BudgetPage = () => {
                   CURRENT WEEK
                 </Typography>
                 <Typography variant="h3" fontWeight="bold" sx={{ color: 'white', mt: 1 }}>
-                  ${currentBudget.amountSpent.toFixed(2)}
+                  ${toNumber(currentBudget.amountSpent).toFixed(2)}
                   <Typography component="span" variant="h5" sx={{ color: 'rgba(255,255,255,0.4)', ml: 1 }}>
-                    / ${currentBudget.budgetAllocated.toFixed(2)}
+                    / ${toNumber(currentBudget.budgetAllocated).toFixed(2)}
                   </Typography>
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)', mt: 1 }}>
@@ -281,8 +287,8 @@ const BudgetPage = () => {
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                     Remaining
                   </Typography>
-                  <Typography variant="h5" fontWeight="bold" sx={{ color: currentBudget.remaining >= 0 ? '#4ECDC4' : '#FF6B6B' }}>
-                    ${Math.abs(currentBudget.remaining).toFixed(2)}
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: toNumber(currentBudget.remaining) >= 0 ? '#4ECDC4' : '#FF6B6B' }}>
+                    ${Math.abs(toNumber(currentBudget.remaining)).toFixed(2)}
                   </Typography>
                 </Box>
               </Grid>
@@ -292,7 +298,7 @@ const BudgetPage = () => {
                     Saved
                   </Typography>
                   <Typography variant="h5" fontWeight="bold" sx={{ color: '#A8E6CF' }}>
-                    ${currentBudget.amountSaved.toFixed(2)}
+                    ${toNumber(currentBudget.amountSaved).toFixed(2)}
                   </Typography>
                 </Box>
               </Grid>
@@ -302,7 +308,7 @@ const BudgetPage = () => {
                     Usage
                   </Typography>
                   <Typography variant="h5" fontWeight="bold" sx={{ color: 'white' }}>
-                    {currentBudget.percentageUsed.toFixed(0)}%
+                    {toNumber(currentBudget.percentageUsed).toFixed(0)}%
                   </Typography>
                 </Box>
               </Grid>
@@ -360,22 +366,22 @@ const BudgetPage = () => {
                       </Box>
                     </TableCell>
                     <TableCell sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)' }}>
-                      ${budget.budgetAllocated.toFixed(2)}
+                      ${toNumber(budget.budgetAllocated).toFixed(2)}
                     </TableCell>
                     <TableCell sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.9)' }}>
-                      ${budget.amountSpent.toFixed(2)}
+                      ${toNumber(budget.amountSpent).toFixed(2)}
                     </TableCell>
                     <TableCell sx={{ color: '#A8E6CF' }}>
-                      ${budget.amountSaved.toFixed(2)}
+                      ${toNumber(budget.amountSaved).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Chip
-                        icon={budget.remaining >= 0 ? <TrendingDown /> : <TrendingUp />}
-                        label={budget.remaining >= 0 ? 'Under Budget' : 'Over Budget'}
+                        icon={toNumber(budget.remaining) >= 0 ? <TrendingDown /> : <TrendingUp />}
+                        label={toNumber(budget.remaining) >= 0 ? 'Under Budget' : 'Over Budget'}
                         size="small"
                         sx={{
-                          bgcolor: budget.remaining >= 0 ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 107, 107, 0.2)',
-                          color: budget.remaining >= 0 ? '#4ECDC4' : '#FF6B6B',
+                          bgcolor: toNumber(budget.remaining) >= 0 ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255, 107, 107, 0.2)',
+                          color: toNumber(budget.remaining) >= 0 ? '#4ECDC4' : '#FF6B6B',
                           fontWeight: 600,
                         }}
                       />
@@ -422,7 +428,7 @@ const BudgetPage = () => {
                         Total Allocated
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
-                        ${budgetStats.summary.totalAllocated.toFixed(2)}
+                        ${toNumber(budgetStats.summary.totalAllocated).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -432,7 +438,7 @@ const BudgetPage = () => {
                         Total Spent
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
-                        ${budgetStats.summary.totalSpent.toFixed(2)}
+                        ${toNumber(budgetStats.summary.totalSpent).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -442,7 +448,7 @@ const BudgetPage = () => {
                         Total Saved
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: '#A8E6CF' }}>
-                        ${budgetStats.summary.totalSaved.toFixed(2)}
+                        ${toNumber(budgetStats.summary.totalSaved).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -452,7 +458,7 @@ const BudgetPage = () => {
                         Avg. Usage
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
-                        {budgetStats.summary.avgPercentageUsed.toFixed(0)}%
+                        {toNumber(budgetStats.summary.avgPercentageUsed).toFixed(0)}%
                       </Typography>
                     </Box>
                   </Grid>
@@ -472,7 +478,7 @@ const BudgetPage = () => {
                         Avg. Budget
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
-                        ${budgetStats.summary.avgBudget.toFixed(2)}
+                        ${toNumber(budgetStats.summary.avgBudget).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -482,7 +488,7 @@ const BudgetPage = () => {
                         Avg. Spent
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
-                        ${budgetStats.summary.avgSpent.toFixed(2)}
+                        ${toNumber(budgetStats.summary.avgSpent).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
@@ -492,7 +498,7 @@ const BudgetPage = () => {
                         Avg. Saved
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" sx={{ color: '#A8E6CF' }}>
-                        ${budgetStats.summary.avgSaved.toFixed(2)}
+                        ${toNumber(budgetStats.summary.avgSaved).toFixed(2)}
                       </Typography>
                     </Box>
                   </Grid>
