@@ -11,14 +11,17 @@ import { aiService } from '../services/aiService';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import QuickActionChips from '../components/chat/QuickActionChips';
 import MessageReactions from '../components/chat/MessageReactions';
+import MealPlanDisplay from '../components/chat/MealPlanDisplay';
 import { useTheme } from '../contexts/ThemeContext';
 import { RootState } from '../app/store';
+import { parseMealPlan, isMealPlan } from '../utils/mealParser';
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  isMealPlan?: boolean;
 }
 
 const ChatPage = () => {
@@ -98,11 +101,13 @@ const ChatPage = () => {
 
       setIsTyping(false);
 
+      const sanitizedResponse = sanitizeAIContent(response.response);
       const aiMsg: Message = {
         id: (Date.now() + 1).toString(),
-        text: sanitizeAIContent(response.response),
+        text: sanitizedResponse,
         sender: 'ai',
         timestamp: new Date(),
+        isMealPlan: isMealPlan(sanitizedResponse),
       };
 
       setMessages(prev => [...prev, aiMsg]);
@@ -225,9 +230,13 @@ const ChatPage = () => {
                             : 'none'
                         }}
                       >
-                        <Typography variant="body1" sx={{ color: message.sender === 'user' ? 'white' : mode === 'dark' ? 'white' : '#000000', lineHeight: 1.6 }}>
-                          {message.text}
-                        </Typography>
+                        {message.sender === 'ai' && message.isMealPlan ? (
+                          <MealPlanDisplay mealPlan={parseMealPlan(message.text)} />
+                        ) : (
+                          <Typography variant="body1" sx={{ color: message.sender === 'user' ? 'white' : mode === 'dark' ? 'white' : '#000000', lineHeight: 1.6 }}>
+                            {message.text}
+                          </Typography>
+                        )}
                       </GlassCard>
 
                       {/* Message Reactions - Only for AI messages */}
