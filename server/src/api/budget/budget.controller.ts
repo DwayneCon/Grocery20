@@ -96,6 +96,9 @@ export const getHouseholdBudgets = asyncHandler(async (req: AuthRequest, res: Re
     }
 
     // Get budget records
+    const limitNum = parseInt(limit as string, 10) || 10;
+    const offsetNum = parseInt(offset as string, 10) || 0;
+
     const budgets: any[] = await query(
       `SELECT
         id,
@@ -113,8 +116,8 @@ export const getHouseholdBudgets = asyncHandler(async (req: AuthRequest, res: Re
       FROM budget_tracking
       WHERE household_id = ?
       ORDER BY week_start DESC
-      LIMIT ? OFFSET ?`,
-      [householdId, Number(limit), Number(offset)]
+      LIMIT ${limitNum} OFFSET ${offsetNum}`,
+      [householdId]
     );
 
     return res.json({
@@ -293,6 +296,8 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
     }
 
     // Get statistics for the last X months
+    const monthsNum = parseInt(months as string, 10) || 3;
+
     const stats: any[] = await query(
       `SELECT
         COUNT(*) as totalWeeks,
@@ -308,8 +313,8 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
         MAX(week_start) as newestWeek
       FROM budget_tracking
       WHERE household_id = ?
-        AND week_start >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)`,
-      [householdId, Number(months)]
+        AND week_start >= DATE_SUB(CURDATE(), INTERVAL ${monthsNum} MONTH)`,
+      [householdId]
     );
 
     // Get weekly breakdown
@@ -324,9 +329,9 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
         ROUND((amount_spent / budget_allocated) * 100, 2) as percentageUsed
       FROM budget_tracking
       WHERE household_id = ?
-        AND week_start >= DATE_SUB(CURDATE(), INTERVAL ? MONTH)
+        AND week_start >= DATE_SUB(CURDATE(), INTERVAL ${monthsNum} MONTH)
       ORDER BY week_start DESC`,
-      [householdId, Number(months)]
+      [householdId]
     );
 
     return res.json({
