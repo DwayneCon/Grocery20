@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, Chip, IconButton, Button, CircularProgress, Alert, Snackbar, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Divider, Tabs, Tab } from '@mui/material';
 
-import { AccessTime, LocalFireDepartment, Refresh, ArrowForward, Add, Restaurant, StarRate } from '@mui/icons-material';
+import { AccessTime, LocalFireDepartment, Refresh, ArrowForward, Add, Restaurant, StarRate, ShoppingCartOutlined } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
@@ -13,6 +13,8 @@ import recipeService, { RatingStats } from '../services/recipeService';
 import RecipeRating from '../components/recipes/RecipeRating';
 import RateRecipeDialog from '../components/recipes/RateRecipeDialog';
 import RecipeReviews from '../components/recipes/RecipeReviews';
+import { useTheme } from '../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 
 interface ParsedMealNotes {
   name?: string;
@@ -33,6 +35,8 @@ interface ParsedMealNotes {
 }
 
 const MealPlanPage = () => {
+  const navigate = useNavigate();
+  const { mode } = useTheme();
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const [mealPlan, setMealPlan] = useState<any>(null);
   const [meals, setMeals] = useState<MealPlanMeal[]>([]);
@@ -195,10 +199,10 @@ const MealPlanPage = () => {
             <Typography variant="caption" sx={{ color: '#4ECDC4', letterSpacing: 1, fontWeight: 'bold' }}>
               {mealType.toUpperCase()}
             </Typography>
-            {meal && <ArrowForward sx={{ color: 'rgba(255,255,255,0.3)', fontSize: 16 }} />}
+            {meal && <ArrowForward sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', fontSize: 16 }} />}
           </Box>
 
-          <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 3 }}>
             {meal && mealData?.name ? sanitizeText(mealData.name) : 'No meal planned'}
           </Typography>
 
@@ -206,10 +210,10 @@ const MealPlanPage = () => {
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               {mealData.prepTime && (
                 <Chip
-                  icon={<AccessTime sx={{ "&&": { color: 'white' } }} />}
+                  icon={<AccessTime sx={{ "&&": { color: mode === 'dark' ? 'white' : '#000000' } }} />}
                   label={`${mealData.prepTime}m`}
                   size="small"
-                  sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                  sx={{ bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: mode === 'dark' ? 'white' : '#000000' }}
                 />
               )}
               {mealData.nutrition?.calories && (
@@ -217,7 +221,7 @@ const MealPlanPage = () => {
                   icon={<LocalFireDepartment sx={{ "&&": { color: '#FFE66D' } }} />}
                   label={`${mealData.nutrition.calories} kcal`}
                   size="small"
-                  sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white' }}
+                  sx={{ bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: mode === 'dark' ? 'white' : '#000000' }}
                 />
               )}
             </Box>
@@ -227,9 +231,14 @@ const MealPlanPage = () => {
     );
   };
 
+  // Theme-aware aurora colors
+  const auroraColors = mode === 'dark'
+    ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
+    : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
+
   if (loading) {
     return (
-      <AuroraBackground colors={['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']} speed={30}>
+      <AuroraBackground colors={auroraColors} speed={30}>
         <Box sx={{
           display: 'flex',
           justifyContent: 'center',
@@ -239,14 +248,14 @@ const MealPlanPage = () => {
           gap: 2
         }}>
           <CircularProgress size={60} sx={{ color: '#4ECDC4' }} />
-          <Typography variant="h6" sx={{ color: 'white' }}>Loading meal plan...</Typography>
+          <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>Loading meal plan...</Typography>
         </Box>
       </AuroraBackground>
     );
   }
 
   return (
-    <AuroraBackground colors={['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']} speed={30}>
+    <AuroraBackground colors={auroraColors} speed={30}>
       {/* Error Snackbar */}
       <Snackbar
         open={!!error}
@@ -267,9 +276,9 @@ const MealPlanPage = () => {
         fullWidth
         PaperProps={{
           sx: {
-            background: 'rgba(30, 30, 30, 0.95)',
+            background: mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
             borderRadius: 3,
           }
         }}
@@ -278,7 +287,10 @@ const MealPlanPage = () => {
           const mealData = parseMealNotes(selectedMeal.notes);
           return (
             <>
-              <DialogTitle sx={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <DialogTitle sx={{
+                color: mode === 'dark' ? 'white' : '#000000',
+                borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
+              }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                   <Box>
                     <Typography variant="h5" fontWeight="bold">{mealData.name || 'Meal Details'}</Typography>
@@ -345,14 +357,14 @@ const MealPlanPage = () => {
                 {activeTab === 0 && (
                   <Box>
                 {mealData.description && (
-                  <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', mb: 3 }}>
+                  <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)', mb: 3 }}>
                     {mealData.description}
                   </Typography>
                 )}
 
                 {mealData.ingredients && mealData.ingredients.length > 0 && (
                   <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>Ingredients</Typography>
+                    <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2 }}>Ingredients</Typography>
                     <Grid container spacing={1}>
                       {mealData.ingredients.map((ing: any, idx: number) => (
                         <Grid size={{ xs: 12, sm: 6 }} key={idx}>
@@ -369,9 +381,9 @@ const MealPlanPage = () => {
 
                 {mealData.instructions && mealData.instructions.length > 0 && (
                   <Box sx={{ mb: 3 }}>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>Instructions</Typography>
+                    <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2 }}>Instructions</Typography>
                     {mealData.instructions.map((step: string, idx: number) => (
-                      <Typography key={idx} variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
+                      <Typography key={idx} variant="body2" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)', mb: 1 }}>
                         {idx + 1}. {step}
                       </Typography>
                     ))}
@@ -380,36 +392,36 @@ const MealPlanPage = () => {
 
                 {mealData.nutrition && (
                   <Box>
-                    <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>Nutrition</Typography>
+                    <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2 }}>Nutrition</Typography>
                     <Grid container spacing={2}>
                       {mealData.nutrition.calories && (
                         <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Calories</Typography>
-                          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>Calories</Typography>
+                          <Typography variant="body1" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold' }}>
                             {mealData.nutrition.calories}
                           </Typography>
                         </Grid>
                       )}
                       {mealData.nutrition.protein && (
                         <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Protein</Typography>
-                          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>Protein</Typography>
+                          <Typography variant="body1" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold' }}>
                             {mealData.nutrition.protein}g
                           </Typography>
                         </Grid>
                       )}
                       {mealData.nutrition.carbs && (
                         <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Carbs</Typography>
-                          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>Carbs</Typography>
+                          <Typography variant="body1" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold' }}>
                             {mealData.nutrition.carbs}g
                           </Typography>
                         </Grid>
                       )}
                       {mealData.nutrition.fat && (
                         <Grid size={{ xs: 6, sm: 3 }}>
-                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>Fat</Typography>
-                          <Typography variant="body1" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>Fat</Typography>
+                          <Typography variant="body1" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold' }}>
                             {mealData.nutrition.fat}g
                           </Typography>
                         </Grid>
@@ -434,6 +446,29 @@ const MealPlanPage = () => {
                 )}
               </DialogContent>
               <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.1)', p: 2 }}>
+                {mealData.ingredients && mealData.ingredients.length > 0 && (
+                  <Button
+                    startIcon={<ShoppingCartOutlined />}
+                    onClick={() => {
+                      // Navigate to shopping list with meal ingredients
+                      navigate('/shopping-list', {
+                        state: {
+                          addIngredients: mealData.ingredients,
+                          mealName: mealData.name
+                        }
+                      });
+                    }}
+                    sx={{
+                      color: '#4ECDC4',
+                      '&:hover': {
+                        bgcolor: 'rgba(78,205,196,0.1)',
+                      },
+                    }}
+                  >
+                    Add to Shopping List
+                  </Button>
+                )}
+                <Box sx={{ flex: 1 }} />
                 <Button onClick={() => setDetailsOpen(false)} sx={{ color: 'white' }}>
                   Close
                 </Button>
@@ -457,12 +492,14 @@ const MealPlanPage = () => {
       <Box sx={{ p: { xs: 2, md: 6 }, position: 'relative', zIndex: 2, maxWidth: '100%', mx: 'auto' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6, flexWrap: 'wrap', gap: 2 }}>
           <Box>
-            <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.7)', letterSpacing: 2 }}>THIS WEEK</Typography>
+            <Typography variant="overline" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)', letterSpacing: 2 }}>THIS WEEK</Typography>
             <Typography
               variant="h2"
               fontWeight="900"
               sx={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)',
+                background: mode === 'dark'
+                  ? 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)'
+                  : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent'
               }}
@@ -499,11 +536,11 @@ const MealPlanPage = () => {
 
         {!mealPlan && !generating ? (
           <GlassCard intensity="ultra" sx={{ p: 6, textAlign: 'center' }}>
-            <Restaurant sx={{ fontSize: 80, color: 'rgba(255,255,255,0.3)', mb: 3 }} />
-            <Typography variant="h5" sx={{ color: 'white', mb: 2, fontWeight: 'bold' }}>
+            <Restaurant sx={{ fontSize: 80, color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', mb: 3 }} />
+            <Typography variant="h5" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2, fontWeight: 'bold' }}>
               No Meal Plan Yet
             </Typography>
-            <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', mb: 4 }}>
+            <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)', mb: 4 }}>
               Generate your first AI-powered meal plan based on your household preferences!
             </Typography>
             <Button
@@ -528,8 +565,8 @@ const MealPlanPage = () => {
             {days.map((day, i) => (
               <Grid size={{ xs: 12 }} key={day}>
                 <Box sx={{ mb: 2 }}>
-                  <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 2 }}>
-                    {day} <Box component="span" sx={{ height: 1, width: 40, bgcolor: 'rgba(255,255,255,0.2)' }} />
+                  <Typography variant="h5" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {day} <Box component="span" sx={{ height: 1, width: 40, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }} />
                   </Typography>
                 </Box>
 

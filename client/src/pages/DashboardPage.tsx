@@ -1,5 +1,5 @@
 /* client/src/pages/DashboardPage.tsx */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Box, Typography, Avatar, Chip, Grid } from '@mui/material';
 
 import { useNavigate } from 'react-router-dom';
@@ -9,16 +9,20 @@ import {
   RestaurantMenu,
   ShoppingCartOutlined,
   TrendingUp,
-  ArrowOutward
+  ArrowOutward,
+  Warning
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import BudgetTracker from '../components/budget/BudgetTracker';
+import NutritionDashboard from '../components/nutrition/NutritionDashboard';
 import { RootState, AppDispatch } from '../features/store';
 import { fetchHouseholdSummary } from '../features/household/householdSlice';
 import { sanitizeText } from '../utils/sanitize';
 import { useTheme } from '../contexts/ThemeContext';
+import { mealPlanService } from '../services/mealPlanService';
+import inventoryService from '../services/inventoryService';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
@@ -27,12 +31,52 @@ const DashboardPage = () => {
   const { summary } = useSelector((state: RootState) => state.household);
   const { mode } = useTheme();
 
+  // Real data state
+  const [todayMealsCount, setTodayMealsCount] = useState(0);
+  const [currentMealPlanId, setCurrentMealPlanId] = useState<string | null>(null);
+  const [expiringItemsCount, setExpiringItemsCount] = useState(0);
+  const [shoppingListCount, setShoppingListCount] = useState(0);
+
   // Fetch household summary on mount
   useEffect(() => {
     if (user?.householdId) {
       dispatch(fetchHouseholdSummary(user.householdId));
+      loadDashboardData();
     }
   }, [dispatch, user?.householdId]);
+
+  const loadDashboardData = async () => {
+    if (!user?.householdId) return;
+
+    try {
+      // Load current meal plan
+      const mealPlanResponse = await mealPlanService.getCurrentWeekPlan(user.householdId);
+      if (mealPlanResponse.success && mealPlanResponse.mealPlan) {
+        const meals = mealPlanResponse.mealPlan.meals || [];
+        const today = new Date().toDateString();
+        const todayMeals = meals.filter((meal: any) => {
+          const mealDate = new Date(meal.meal_date).toDateString();
+          return mealDate === today;
+        });
+        setTodayMealsCount(todayMeals.length);
+        setCurrentMealPlanId(mealPlanResponse.mealPlan.mealPlan.id);
+      }
+
+      // Load expiring inventory items
+      const inventoryResponse = await inventoryService.getExpiringSoon(user.householdId, 3);
+      if (inventoryResponse.success) {
+        setExpiringItemsCount(inventoryResponse.data.length);
+      }
+
+      // Shopping list count from summary
+      if (summary?.activeShoppingLists) {
+        const totalItems = summary.activeShoppingLists.reduce((sum: number, list: any) => sum + (list.itemCount || 0), 0);
+        setShoppingListCount(totalItems);
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    }
+  };
 
   // Animation Stagger
   const container = {
@@ -223,6 +267,15 @@ const DashboardPage = () => {
             </motion.div>
           </Grid>
 
+          {/* 3. Nutrition Dashboard - Full Width (if meal plan exists) */}
+          {currentMealPlanId && (
+            <Grid size={{ xs: 12 }}>
+              <motion.div variants={item}>
+                <NutritionDashboard mealPlanId={currentMealPlanId} />
+              </motion.div>
+            </Grid>
+          )}
+
           {/* 3. QUICK ACTION: Shopping List (Square) */}
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <GlassCard
@@ -252,7 +305,7 @@ const DashboardPage = () => {
                     fontSize: { xs: '1.75rem', md: '2rem' }
                   }}
                 >
-                  12
+                  {shoppingListCount}
                 </Typography>
               </Box>
               <Box>
@@ -273,7 +326,7 @@ const DashboardPage = () => {
                     fontSize: { xs: '0.85rem', md: '0.875rem' }
                   }}
                 >
-                  3 items urgent
+                  {shoppingListCount === 0 ? 'No items' : `${summary?.activeShoppingLists?.length || 0} active lists`}
                 </Typography>
               </Box>
             </GlassCard>
@@ -308,7 +361,7 @@ const DashboardPage = () => {
                     fontSize: { xs: '1.75rem', md: '2rem' }
                   }}
                 >
-                  3
+                  {todayMealsCount}
                 </Typography>
               </Box>
               <Box>
@@ -329,32 +382,38 @@ const DashboardPage = () => {
                     fontSize: { xs: '0.85rem', md: '0.875rem' }
                   }}
                 >
-                  Dinner not prepped
+                  {todayMealsCount === 0 ? 'No meals planned' : `${todayMealsCount} meals today`}
                 </Typography>
               </Box>
             </GlassCard>
           </Grid>
 
-          {/* 5. INSIGHT: Streak/Health (Rectangle) */}
+          {/* 5. INSIGHT: Expiring Items (Rectangle) */}
           <Grid size={{ xs: 12, md: 4 }}>
              <GlassCard
               intensity="ultra"
               component={motion.div}
               variants={item}
+              onClick={() => navigate('/inventory')}
               sx={{
                 height: { xs: 180, md: 200 },
                 display: 'flex',
                 alignItems: 'center',
                 gap: { xs: 2, md: 3 },
-                p: { xs: 2.5, md: 3 }
+                p: { xs: 2.5, md: 3 },
+                cursor: expiringItemsCount > 0 ? 'pointer' : 'default'
               }}
             >
                <Box sx={{
                  p: 2,
-                 bgcolor: 'rgba(255,107,107,0.2)',
+                 bgcolor: expiringItemsCount > 0 ? 'rgba(255,107,107,0.2)' : 'rgba(78,205,196,0.2)',
                  borderRadius: '50%'
                }}>
-                 <TrendingUp sx={{ fontSize: { xs: 28, md: 32 }, color: '#FF6B6B' }} />
+                 {expiringItemsCount > 0 ? (
+                   <Warning sx={{ fontSize: { xs: 28, md: 32 }, color: '#FF6B6B' }} />
+                 ) : (
+                   <TrendingUp sx={{ fontSize: { xs: 28, md: 32 }, color: '#4ECDC4' }} />
+                 )}
                </Box>
                <Box>
                  <Typography
@@ -365,7 +424,7 @@ const DashboardPage = () => {
                      fontSize: { xs: '1.15rem', md: '1.5rem' }
                    }}
                  >
-                   5 Day Streak
+                   {expiringItemsCount > 0 ? `${expiringItemsCount} Items Expiring` : 'Inventory Fresh'}
                  </Typography>
                  <Typography
                    variant="body2"
@@ -374,7 +433,7 @@ const DashboardPage = () => {
                      fontSize: { xs: '0.85rem', md: '0.875rem' }
                    }}
                  >
-                   You stayed under budget for 5 days in a row!
+                   {expiringItemsCount > 0 ? 'Use these items soon!' : 'All items are fresh'}
                  </Typography>
                </Box>
             </GlassCard>

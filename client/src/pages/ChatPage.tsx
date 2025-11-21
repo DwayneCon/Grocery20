@@ -10,6 +10,7 @@ import { aiService, ConversationMessage } from '../services/aiService';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import QuickActionChips from '../components/chat/QuickActionChips';
 import MessageReactions from '../components/chat/MessageReactions';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Message {
   id: string;
@@ -19,6 +20,7 @@ interface Message {
 }
 
 const ChatPage = () => {
+  const { mode } = useTheme();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -144,8 +146,13 @@ const ChatPage = () => {
     // You can implement reaction tracking here
   };
 
+  // Theme-aware aurora colors
+  const auroraColors = mode === 'dark'
+    ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
+    : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
+
   return (
-    <AuroraBackground colors={['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']} speed={25}>
+    <AuroraBackground colors={auroraColors} speed={25}>
       {/* Error Snackbar */}
       <Snackbar
         open={!!error}
@@ -198,8 +205,8 @@ const ChatPage = () => {
                     maxWidth: { xs: '90%', md: '70%' }
                   }}>
                     <Avatar sx={{
-                      bgcolor: message.sender === 'user' ? '#4ECDC4' : 'rgba(255,255,255,0.05)',
-                      border: message.sender === 'ai' ? '1px solid rgba(255,255,255,0.3)' : 'none',
+                      bgcolor: message.sender === 'user' ? '#4ECDC4' : mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                      border: message.sender === 'ai' ? mode === 'dark' ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.3)' : 'none',
                     }}>
                       {message.sender === 'user' ? <Person /> : <SmartToy sx={{ color: '#4ECDC4' }} />}
                     </Avatar>
@@ -212,13 +219,15 @@ const ChatPage = () => {
                           borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
                           background: message.sender === 'user'
                             ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                            : 'rgba(255, 255, 255, 0.1)',
+                            : mode === 'dark'
+                            ? 'rgba(255, 255, 255, 0.1)'
+                            : 'rgba(0, 0, 0, 0.1)',
                           boxShadow: message.sender === 'user'
                             ? '0 8px 32px rgba(102, 126, 234, 0.3)'
                             : 'none'
                         }}
                       >
-                        <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
+                        <Typography variant="body1" sx={{ color: message.sender === 'user' ? 'white' : mode === 'dark' ? 'white' : '#000000', lineHeight: 1.6 }}>
                           {message.text}
                         </Typography>
                       </GlassCard>
@@ -240,7 +249,7 @@ const ChatPage = () => {
             {isTyping && (
               <Box sx={{ display: 'flex', gap: 2, ml: 2, mt: 2, alignItems: 'center' }}>
                  <CircularProgress size={16} thickness={5} sx={{ color: '#4ECDC4' }} />
-                 <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>AI is thinking...</Typography>
+                 <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>AI is thinking...</Typography>
               </Box>
             )}
             <div ref={bottomRef} />
@@ -293,9 +302,14 @@ const ChatPage = () => {
               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               InputProps={{
                 disableUnderline: true,
-                sx: { color: 'white', fontSize: '1.1rem' }
+                sx: { color: mode === 'dark' ? 'white' : '#000000', fontSize: '1.1rem' }
               }}
-              sx={{ flex: 1 }}
+              sx={{
+                flex: 1,
+                '& ::placeholder': {
+                  color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)',
+                },
+              }}
               aria-label="Chat message input"
             />
             <Tooltip title="Send message" arrow>

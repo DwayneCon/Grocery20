@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Typography, CircularProgress, Grid, LinearProgress } from '@mui/material';
-import { LocalFireDepartment, FitnessCenter, Breakfast, Opacity } from '@mui/icons-material';
+import { LocalFireDepartment, FitnessCenter, RiceBowl, Opacity } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import nutritionService, { NutritionData } from '../../services/nutritionService';
@@ -73,7 +73,7 @@ const NutritionDashboard = ({ mealPlanId }: NutritionDashboardProps) => {
       name: 'Carbs',
       value: weeklyAverages.carbs || 0,
       unit: 'g',
-      icon: Breakfast,
+      icon: RiceBowl,
       color: '#4ECDC4',
       goal: 250,
     },
