@@ -14,12 +14,12 @@ export const addInventoryItem = asyncHandler(async (req: AuthRequest, res: Respo
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -72,12 +72,12 @@ export const getHouseholdInventory = asyncHandler(async (req: AuthRequest, res: 
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -143,12 +143,12 @@ export const getExpiringSoon = asyncHandler(async (req: AuthRequest, res: Respon
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -344,12 +344,12 @@ export const getInventoryStats = asyncHandler(async (req: AuthRequest, res: Resp
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -416,12 +416,12 @@ export const markExpiredItems = asyncHandler(async (req: AuthRequest, res: Respo
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',

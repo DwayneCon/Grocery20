@@ -14,12 +14,12 @@ export const createBudget = asyncHandler(async (req: AuthRequest, res: Response)
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -83,12 +83,12 @@ export const getHouseholdBudgets = asyncHandler(async (req: AuthRequest, res: Re
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -141,12 +141,12 @@ export const getCurrentBudget = asyncHandler(async (req: AuthRequest, res: Respo
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
@@ -280,12 +280,12 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
 
   try {
     // Verify user belongs to household
-    const membership: any[] = await query(
-      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
-      [householdId, userId]
+    const userCheck: any[] = await query(
+      'SELECT household_id FROM users WHERE id = ?',
+      [userId]
     );
 
-    if (membership.length === 0) {
+    if (userCheck.length === 0 || userCheck[0].household_id !== householdId) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this household',
