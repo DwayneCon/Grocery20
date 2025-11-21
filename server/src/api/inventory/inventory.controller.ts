@@ -15,7 +15,7 @@ export const addInventoryItem = asyncHandler(async (req: AuthRequest, res: Respo
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -73,7 +73,7 @@ export const getHouseholdInventory = asyncHandler(async (req: AuthRequest, res: 
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -144,7 +144,7 @@ export const getExpiringSoon = asyncHandler(async (req: AuthRequest, res: Respon
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -345,7 +345,7 @@ export const getInventoryStats = asyncHandler(async (req: AuthRequest, res: Resp
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -417,7 +417,7 @@ export const markExpiredItems = asyncHandler(async (req: AuthRequest, res: Respo
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 

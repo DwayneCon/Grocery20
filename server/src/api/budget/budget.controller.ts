@@ -15,7 +15,7 @@ export const createBudget = asyncHandler(async (req: AuthRequest, res: Response)
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -84,7 +84,7 @@ export const getHouseholdBudgets = asyncHandler(async (req: AuthRequest, res: Re
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -142,7 +142,7 @@ export const getCurrentBudget = asyncHandler(async (req: AuthRequest, res: Respo
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
@@ -281,7 +281,7 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
   try {
     // Verify user belongs to household
     const membership: any[] = await query(
-      'SELECT role FROM household_members WHERE household_id = ? AND user_id = ?',
+      'SELECT id FROM household_members WHERE household_id = ? AND user_id = ?',
       [householdId, userId]
     );
 
