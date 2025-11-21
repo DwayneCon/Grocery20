@@ -116,6 +116,133 @@ Provide nutrition insights without being preachy:
 Remember: You're not just planning meals - you're making life easier, healthier, and more delicious for real families with real challenges. Be their trusted culinary companion.
 `;
 
+// Helper function to build household context for AI
+async function buildHouseholdContext(householdId: string): Promise<string> {
+  try {
+    // Get household info
+    const households = await query<any[]>(
+      'SELECT * FROM households WHERE id = ?',
+      [householdId]
+    );
+
+    if (households.length === 0) {
+      return '';
+    }
+
+    const household = households[0];
+
+    // Get members
+    const members = await query<any[]>(
+      'SELECT * FROM household_members WHERE household_id = ?',
+      [householdId]
+    );
+
+    // Get dietary preferences
+    const preferences = await query<any[]>(
+      'SELECT * FROM dietary_preferences WHERE household_id = ?',
+      [householdId]
+    );
+
+    // Parse JSON fields
+    const parseJsonField = (field: any, defaultValue: any) => {
+      if (typeof field === 'string') {
+        try {
+          return JSON.parse(field);
+        } catch {
+          return defaultValue;
+        }
+      }
+      return field || defaultValue;
+    };
+
+    const parsedMembers = members.map((member) => ({
+      ...member,
+      dietary_restrictions: parseJsonField(member.dietary_restrictions, []),
+      preferences: parseJsonField(member.preferences, {}),
+    }));
+
+    // Aggregate dietary information
+    const allergies: string[] = [];
+    const intolerances: string[] = [];
+    const restrictions: string[] = [];
+    const likes: string[] = [];
+    const dislikes: string[] = [];
+
+    parsedMembers.forEach((member) => {
+      if (Array.isArray(member.dietary_restrictions)) {
+        member.dietary_restrictions.forEach((restriction: any) => {
+          if (typeof restriction === 'string') {
+            restrictions.push(restriction);
+          } else if (restriction.type === 'allergy') {
+            allergies.push(restriction.item);
+          } else if (restriction.type === 'intolerance') {
+            intolerances.push(restriction.item);
+          }
+        });
+      }
+
+      if (member.preferences?.dislikes) {
+        dislikes.push(...member.preferences.dislikes);
+      }
+      if (member.preferences?.likes) {
+        likes.push(...member.preferences.likes);
+      }
+    });
+
+    // From dietary_preferences table
+    preferences.forEach((pref) => {
+      if (pref.preference_type === 'allergy') {
+        allergies.push(pref.item);
+      } else if (pref.preference_type === 'intolerance') {
+        intolerances.push(pref.item);
+      } else if (pref.preference_type === 'restriction') {
+        restrictions.push(pref.item);
+      } else if (pref.preference_type === 'preference') {
+        likes.push(pref.item);
+      }
+    });
+
+    // Build context string
+    let context = '\n# HOUSEHOLD CONTEXT\n\n';
+    context += `**Household Name:** ${household.name}\n`;
+    context += `**Number of Members:** ${members.length}\n`;
+
+    if (members.length > 0) {
+      context += `**Members:** ${parsedMembers.map(m => m.name + (m.age ? ` (${m.age}yo)` : '')).join(', ')}\n`;
+    }
+
+    if (household.budget_weekly) {
+      context += `**Weekly Budget:** $${household.budget_weekly.toFixed(2)}\n`;
+    }
+
+    if (allergies.length > 0) {
+      context += `\n**🚨 CRITICAL - ALLERGIES (MUST AVOID):** ${[...new Set(allergies)].join(', ')}\n`;
+    }
+
+    if (intolerances.length > 0) {
+      context += `**Intolerances:** ${[...new Set(intolerances)].join(', ')}\n`;
+    }
+
+    if (restrictions.length > 0) {
+      context += `**Dietary Restrictions:** ${[...new Set(restrictions)].join(', ')}\n`;
+    }
+
+    if (likes.length > 0) {
+      context += `**Preferences (Likes):** ${[...new Set(likes)].join(', ')}\n`;
+    }
+
+    if (dislikes.length > 0) {
+      context += `**Dislikes:** ${[...new Set(dislikes)].join(', ')}\n`;
+    }
+
+    context += '\n---\n';
+    return context;
+  } catch (error) {
+    console.error('Error building household context:', error);
+    return '';
+  }
+}
+
 // Chat endpoint with conversation history persistence
 export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { message, householdId, useHistory = true } = req.body;
@@ -132,6 +259,12 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   let conversationContext: OpenAI.Chat.ChatCompletionMessageParam[] = [];
 
   try {
+    // Load household context if provided
+    let householdContext = '';
+    if (householdId) {
+      householdContext = await buildHouseholdContext(householdId);
+    }
+
     // Load conversation history from database if enabled
     if (useHistory) {
       const history = await getConversationHistory(userId, 20, householdId);
@@ -145,9 +278,12 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
         }));
     }
 
+    // Build system prompt with household context
+    const systemPrompt = SYSTEM_PROMPT + householdContext;
+
     // Build messages array with system prompt, history, and new message
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...conversationContext,
       { role: 'user', content: message },
     ];
