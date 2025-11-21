@@ -1,14 +1,18 @@
 /* client/src/pages/MealPlanPage.tsx */
 import { useState, useEffect } from 'react';
-import { Box, Typography, Chip, IconButton, Button, CircularProgress, Alert, Snackbar, Dialog, DialogTitle, DialogContent, DialogActions, Grid } from '@mui/material';
+import { Box, Typography, Chip, IconButton, Button, CircularProgress, Alert, Snackbar, Dialog, DialogTitle, DialogContent, DialogActions, Grid, Divider, Tabs, Tab } from '@mui/material';
 
-import { AccessTime, LocalFireDepartment, Refresh, ArrowForward, Add, Restaurant } from '@mui/icons-material';
+import { AccessTime, LocalFireDepartment, Refresh, ArrowForward, Add, Restaurant, StarRate } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import { sanitizeText } from '../utils/sanitize';
 import { mealPlanService, MealPlanMeal } from '../services/mealPlanService';
 import { aiService } from '../services/aiService';
+import recipeService, { RatingStats } from '../services/recipeService';
+import RecipeRating from '../components/recipes/RecipeRating';
+import RateRecipeDialog from '../components/recipes/RateRecipeDialog';
+import RecipeReviews from '../components/recipes/RecipeReviews';
 
 interface ParsedMealNotes {
   name?: string;
@@ -37,6 +41,10 @@ const MealPlanPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedMeal, setSelectedMeal] = useState<MealPlanMeal | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [ratingStats, setRatingStats] = useState<RatingStats | null>(null);
+  const [loadingRatings, setLoadingRatings] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Load current week's meal plan
   useEffect(() => {
@@ -130,9 +138,35 @@ const MealPlanPage = () => {
     return notes || {};
   };
 
+  const loadRecipeRatings = async (recipeId: string) => {
+    try {
+      setLoadingRatings(true);
+      const response = await recipeService.getRecipeRatings(recipeId, 5, 0);
+      if (response.success) {
+        setRatingStats(response.data.stats);
+      }
+    } catch (err) {
+      console.error('Error loading ratings:', err);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+
   const handleMealClick = (meal: MealPlanMeal) => {
     setSelectedMeal(meal);
     setDetailsOpen(true);
+    setActiveTab(0);
+    // Load ratings for this meal (using meal ID as recipe ID)
+    if (meal.id) {
+      loadRecipeRatings(meal.id);
+    }
+  };
+
+  const handleRatingSubmitted = () => {
+    // Reload ratings after submission
+    if (selectedMeal?.id) {
+      loadRecipeRatings(selectedMeal.id);
+    }
   };
 
   const renderMealCard = (dayName: string, mealType: string, index: number) => {
@@ -245,12 +279,71 @@ const MealPlanPage = () => {
           return (
             <>
               <DialogTitle sx={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                <Typography variant="h5" fontWeight="bold">{mealData.name || 'Meal Details'}</Typography>
-                <Typography variant="caption" sx={{ color: '#4ECDC4' }}>
-                  {selectedMeal.meal_type.toUpperCase()}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                  <Box>
+                    <Typography variant="h5" fontWeight="bold">{mealData.name || 'Meal Details'}</Typography>
+                    <Typography variant="caption" sx={{ color: '#4ECDC4' }}>
+                      {selectedMeal.meal_type.toUpperCase()}
+                    </Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<StarRate />}
+                    onClick={() => setRatingDialogOpen(true)}
+                    sx={{
+                      color: '#FFD700',
+                      borderColor: '#FFD700',
+                      '&:hover': {
+                        borderColor: '#FFD700',
+                        bgcolor: 'rgba(255,215,0,0.1)',
+                      },
+                    }}
+                  >
+                    Rate
+                  </Button>
+                </Box>
+
+                {/* Rating Display */}
+                {ratingStats && !loadingRatings && (
+                  <Box sx={{ mt: 2 }}>
+                    <RecipeRating stats={ratingStats} size="medium" />
+                  </Box>
+                )}
+                {loadingRatings && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 2 }}>
+                    <CircularProgress size={16} sx={{ color: '#4ECDC4' }} />
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                      Loading ratings...
+                    </Typography>
+                  </Box>
+                )}
+
+                {/* Tabs */}
+                <Tabs
+                  value={activeTab}
+                  onChange={(_, newValue) => setActiveTab(newValue)}
+                  sx={{
+                    mt: 2,
+                    '& .MuiTab-root': {
+                      color: 'rgba(255,255,255,0.6)',
+                      '&.Mui-selected': {
+                        color: '#4ECDC4',
+                      },
+                    },
+                    '& .MuiTabs-indicator': {
+                      bgcolor: '#4ECDC4',
+                    },
+                  }}
+                >
+                  <Tab label="Details" />
+                  <Tab label="Reviews" />
+                </Tabs>
               </DialogTitle>
               <DialogContent sx={{ mt: 2 }}>
+                {/* Details Tab */}
+                {activeTab === 0 && (
+                  <Box>
                 {mealData.description && (
                   <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.8)', mb: 3 }}>
                     {mealData.description}
@@ -324,6 +417,21 @@ const MealPlanPage = () => {
                     </Grid>
                   </Box>
                 )}
+                  </Box>
+                )}
+
+                {/* Reviews Tab */}
+                {activeTab === 1 && selectedMeal?.id && (
+                  <Box>
+                    {ratingStats && (
+                      <Box sx={{ mb: 3 }}>
+                        <RecipeRating stats={ratingStats} size="large" showDistribution />
+                        <Divider sx={{ my: 3, borderColor: 'rgba(255,255,255,0.1)' }} />
+                      </Box>
+                    )}
+                    <RecipeReviews recipeId={selectedMeal.id} />
+                  </Box>
+                )}
               </DialogContent>
               <DialogActions sx={{ borderTop: '1px solid rgba(255,255,255,0.1)', p: 2 }}>
                 <Button onClick={() => setDetailsOpen(false)} sx={{ color: 'white' }}>
@@ -334,6 +442,17 @@ const MealPlanPage = () => {
           );
         })()}
       </Dialog>
+
+      {/* Rate Recipe Dialog */}
+      {selectedMeal && (
+        <RateRecipeDialog
+          open={ratingDialogOpen}
+          onClose={() => setRatingDialogOpen(false)}
+          recipeId={selectedMeal.id}
+          recipeName={parseMealNotes(selectedMeal.notes).name || 'This Recipe'}
+          onRatingSubmitted={handleRatingSubmitted}
+        />
+      )}
 
       <Box sx={{ p: { xs: 2, md: 6 }, position: 'relative', zIndex: 2, maxWidth: '100%', mx: 'auto' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6, flexWrap: 'wrap', gap: 2 }}>

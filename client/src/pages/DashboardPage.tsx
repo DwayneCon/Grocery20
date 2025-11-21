@@ -211,10 +211,15 @@ const DashboardPage = () => {
           {/* 2. Budget Tracker - Full Width */}
           <Grid size={{ xs: 12 }}>
             <motion.div variants={item}>
-              <BudgetTracker
-                total={200}
-                spent={144}
-              />
+              {user?.householdId ? (
+                <BudgetTracker householdId={user.householdId} />
+              ) : (
+                <GlassCard intensity="strong" sx={{ height: '100%', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+                  <Typography sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                    Please join or create a household to track your budget
+                  </Typography>
+                </GlassCard>
+              )}
             </motion.div>
           </Grid>
 

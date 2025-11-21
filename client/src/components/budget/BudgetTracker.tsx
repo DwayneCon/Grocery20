@@ -1,14 +1,83 @@
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, CircularProgress, Alert } from '@mui/material';
 import { TrendingUp, AccountBalanceWallet, Warning } from '@mui/icons-material';
 import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import GlassCard from '../common/GlassCard';
+import budgetService, { Budget } from '../../services/budgetService';
 
 interface BudgetTrackerProps {
-  spent: number;
-  total: number;
+  householdId: string;
 }
 
-const BudgetTracker = ({ spent = 124, total = 200 }: BudgetTrackerProps) => {
+const BudgetTracker = ({ householdId }: BudgetTrackerProps) => {
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchBudget = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const response = await budgetService.getCurrentBudget(householdId);
+        if (response.success && response.data) {
+          setBudget(response.data);
+        } else {
+          // No budget for current week - show empty state
+          setBudget(null);
+        }
+      } catch (err) {
+        console.error('Error fetching budget:', err);
+        setError('Failed to load budget data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (householdId) {
+      fetchBudget();
+    }
+  }, [householdId]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <GlassCard intensity="strong" sx={{ height: '100%', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress sx={{ color: '#4ECDC4' }} />
+      </GlassCard>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <GlassCard intensity="strong" sx={{ height: '100%', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Alert severity="error" sx={{ bgcolor: 'rgba(255,255,255,0.1)' }}>
+          {error}
+        </Alert>
+      </GlassCard>
+    );
+  }
+
+  // Show empty state if no budget
+  if (!budget) {
+    return (
+      <GlassCard intensity="strong" sx={{ height: '100%', minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', p: 3 }}>
+        <AccountBalanceWallet sx={{ fontSize: 64, color: 'rgba(255,255,255,0.3)', mb: 2 }} />
+        <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+          No budget set for this week
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center', mt: 1 }}>
+          Create a weekly budget to track your spending
+        </Typography>
+      </GlassCard>
+    );
+  }
+
+  const spent = budget.amountSpent;
+  const total = budget.budgetAllocated;
+  const saved = budget.amountSaved;
+  const remaining = budget.remaining;
   const percentage = Math.min(100, Math.max(0, (spent / total) * 100));
   const isOverBudget = spent > total;
 
@@ -79,8 +148,10 @@ const BudgetTracker = ({ spent = 124, total = 200 }: BudgetTrackerProps) => {
         <TrendingUp sx={{ color: isOverBudget ? '#FF6B6B' : '#4ECDC4' }} />
         <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
           {isOverBudget
-            ? "You've exceeded your weekly limit."
-            : "You're on track to save $20 this week."}
+            ? `You've exceeded your weekly limit by $${Math.abs(remaining).toFixed(2)}.`
+            : saved > 0
+            ? `You've saved $${saved.toFixed(2)} this week with deals!`
+            : `$${remaining.toFixed(2)} remaining in your budget.`}
         </Typography>
       </Box>
 
