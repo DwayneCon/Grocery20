@@ -15,12 +15,14 @@ import { Kitchen, Delete, Warning, CheckCircle } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import inventoryService, { InventoryItem } from '../../services/inventoryService';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface InventoryListProps {
   householdId: string;
 }
 
 const InventoryList = ({ householdId }: InventoryListProps) => {
+  const { mode } = useTheme();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,7 +94,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
   if (error) {
     return (
       <GlassCard intensity="strong" sx={{ minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography sx={{ color: 'rgba(255,255,255,0.6)' }}>{error}</Typography>
+        <Typography sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>{error}</Typography>
       </GlassCard>
     );
   }
@@ -100,11 +102,11 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
   if (items.length === 0) {
     return (
       <GlassCard intensity="strong" sx={{ minHeight: 300, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-        <Kitchen sx={{ fontSize: 64, color: 'rgba(255,255,255,0.3)' }} />
-        <Typography sx={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center' }}>
+        <Kitchen sx={{ fontSize: 64, color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' }} />
+        <Typography sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', textAlign: 'center' }}>
           No items in your inventory yet
         </Typography>
-        <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+        <Typography variant="body2" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)', textAlign: 'center' }}>
           Start tracking your groceries to reduce waste
         </Typography>
       </GlassCard>
@@ -123,7 +125,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
     <Box>
       {Object.entries(grouped).map(([location, locationItems]) => (
         <Box key={location} sx={{ mb: 3 }}>
-          <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2, mb: 1, display: 'block' }}>
+          <Typography variant="overline" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)', letterSpacing: 2, mb: 1, display: 'block' }}>
             {location}
           </Typography>
           <GlassCard intensity="light">
@@ -160,7 +162,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
 
                       <ListItemText
                         primary={
-                          <Typography variant="body1" sx={{ color: 'white', fontWeight: 500 }}>
+                          <Typography variant="body1" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 500 }}>
                             {item.name}
                           </Typography>
                         }
@@ -169,7 +171,11 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
                             <Chip
                               label={`${item.quantity} ${item.unit}`}
                               size="small"
-                              sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', height: 20 }}
+                              sx={{
+                                bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                color: mode === 'dark' ? 'white' : '#000000',
+                                height: 20
+                              }}
                             />
                             {item.expirationDate && (
                               <Chip
@@ -190,7 +196,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
                         <IconButton
                           edge="end"
                           onClick={() => handleDelete(item.id)}
-                          sx={{ color: 'rgba(255,255,255,0.5)' }}
+                          sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
                         >
                           <Delete />
                         </IconButton>

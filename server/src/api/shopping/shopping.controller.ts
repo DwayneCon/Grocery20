@@ -272,7 +272,7 @@ export const getShoppingLists = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({
     success: true,
     count: listsWithCounts.length,
-    shoppingLists: listsWithCounts,
+    data: listsWithCounts,
   });
 });
 
@@ -314,7 +314,7 @@ export const getShoppingList = asyncHandler(async (req: AuthRequest, res: Respon
 
   res.json({
     success: true,
-    shoppingList: {
+    data: {
       ...list,
       items,
       groupedItems,

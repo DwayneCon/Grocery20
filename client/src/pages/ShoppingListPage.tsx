@@ -40,7 +40,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import shoppingListService, { ShoppingList, ShoppingListItem } from '../services/shoppingListService';
 import { useSelector } from 'react-redux';
 import { RootState } from '../features/store';
-import PriceComparison from '../components/stores/PriceComparison';
+import PriceComparison from '../components/shopping/PriceComparison';
 
 const ShoppingListPage = () => {
   const { mode } = useTheme();

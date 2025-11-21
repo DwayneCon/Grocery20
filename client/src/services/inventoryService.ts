@@ -71,7 +71,7 @@ export const inventoryService = {
     success: boolean;
     data: InventoryItem[];
   }> => {
-    const response = await api.get(`/inventory/household/${householdId}/expiring`, {
+    const response = await api.get(`/inventory/household/${householdId}/expiring-soon`, {
       params: { days },
     });
     return response.data;
