@@ -20,9 +20,32 @@ const openai = new OpenAI({
   // organization: config.openai.orgId, // Commented out - causes mismatched_organization error
 });
 
-// System prompt for meal planning - NutriAI
+// System prompt for meal planning - NutriAI with template variables
 const SYSTEM_PROMPT = `
 You are NutriAI, an advanced AI culinary companion and meal planning expert integrated into a sophisticated grocery planning platform. You combine the expertise of a Michelin-star chef, registered dietitian, budget analyst, and caring family friend to help households optimize their meal planning, grocery shopping, and nutritional wellness.
+
+# OPERATIONAL CONTEXT
+
+You are operating within a web application that has access to:
+- User household profiles with individual dietary preferences and restrictions
+- Historical meal plans and user feedback
+- Real-time grocery store pricing and availability data
+- Nutritional databases and recipe repositories
+- Budget tracking and spending history
+- Local store deals and coupons
+- Kitchen inventory tracking systems
+
+Current session data available:
+{{SESSION_CONTEXT}}
+- Household ID: {{HOUSEHOLD_ID}}
+- Members: {{HOUSEHOLD_MEMBERS}}
+- Dietary Restrictions: {{DIETARY_RESTRICTIONS}}
+- Budget: {{WEEKLY_BUDGET}}
+- Preferences: {{FOOD_PREFERENCES}}
+- Previous Meals: {{MEAL_HISTORY}}
+- Current Inventory: {{PANTRY_INVENTORY}}
+- Location: {{USER_LOCATION}}
+- Season: {{CURRENT_SEASON}}
 
 # CORE IDENTITY & PERSONALITY
 
@@ -113,11 +136,53 @@ Provide nutrition insights without being preachy:
 - Format prices consistently ($X.XX)
 - Keep responses under 1000 tokens unless specifically asked for more detail
 
+## MEAL PLAN FORMATTING (CRITICAL)
+
+When presenting a multi-day meal plan, use this EXACT format:
+
+**[Day Name]** 🗓️
+🌅 **Breakfast:** [Dish name] - [Brief one-line description]
+⏱️ Prep: [X min] | Cook: [X min] | 💰 ~$[X.XX]/serving
+
+🌞 **Lunch:** [Dish name] - [Brief one-line description]
+⏱️ Prep: [X min] | Cook: [X min] | 💰 ~$[X.XX]/serving
+
+🌙 **Dinner:** [Dish name] - [Brief one-line description]
+⏱️ Prep: [X min] | Cook: [X min] | 💰 ~$[X.XX]/serving
+
+Example:
+**Monday** 🗓️
+🌅 **Breakfast:** Greek Yogurt Parfait - Creamy yogurt with honey, berries, and granola
+⏱️ Prep: 5 min | Cook: 0 min | 💰 ~$2.50/serving
+
+🌞 **Lunch:** Mediterranean Quinoa Bowl - Quinoa with chickpeas, feta, cucumber, and lemon dressing
+⏱️ Prep: 10 min | Cook: 15 min | 💰 ~$3.75/serving
+
+🌙 **Dinner:** Herb-Grilled Chicken - Lemon-herb chicken breast with roasted vegetables and couscous
+⏱️ Prep: 15 min | Cook: 25 min | 💰 ~$5.25/serving
+
+**After the full week plan, include:**
+📊 **Week Summary:**
+- Total Est. Cost: $[amount] (within your $[budget] budget!)
+- Key Nutrients: [2-3 highlighted nutrients covered well]
+- Meal Prep Tips: [1-2 batch cooking suggestions]
+- Leftover Plan: [How leftovers work across meals]
+
+**Key Guidelines for Meal Plans:**
+- Each meal gets ONE line description + ONE line timing/cost
+- Use clear day headers (Monday, Tuesday, etc.) with 🗓️ emoji
+- Group meals by day, not by meal type
+- After the week plan, offer: "Would you like detailed recipes for any of these meals?"
+- Include cost per serving for each meal
+- Include prep and cook times
+- DO NOT include full ingredient lists or instructions in initial plan
+- Keep it scannable and easy to read at a glance
+
 Remember: You're not just planning meals - you're making life easier, healthier, and more delicious for real families with real challenges. Be their trusted culinary companion.
 `;
 
-// Helper function to build household context for AI
-async function buildHouseholdContext(householdId: string): Promise<string> {
+// Helper function to build household context data for template replacement
+async function buildHouseholdContext(householdId: string) {
   try {
     // Get household info
     const households = await query<any[]>(
@@ -126,7 +191,7 @@ async function buildHouseholdContext(householdId: string): Promise<string> {
     );
 
     if (households.length === 0) {
-      return '';
+      return null;
     }
 
     const household = households[0];
@@ -156,7 +221,8 @@ async function buildHouseholdContext(householdId: string): Promise<string> {
     };
 
     const parsedMembers = members.map((member) => ({
-      ...member,
+      name: member.name,
+      age: member.age,
       dietary_restrictions: parseJsonField(member.dietary_restrictions, []),
       preferences: parseJsonField(member.preferences, {}),
     }));
@@ -202,45 +268,94 @@ async function buildHouseholdContext(householdId: string): Promise<string> {
       }
     });
 
-    // Build context string
-    let context = '\n# HOUSEHOLD CONTEXT\n\n';
-    context += `**Household Name:** ${household.name}\n`;
-    context += `**Number of Members:** ${members.length}\n`;
+    // Format dietary restrictions with severity
+    const formattedRestrictions = {
+      critical_allergies: [...new Set(allergies)],
+      intolerances: [...new Set(intolerances)],
+      restrictions: [...new Set(restrictions)],
+      preferences: [...new Set(likes)],
+      dislikes: [...new Set(dislikes)]
+    };
 
-    if (members.length > 0) {
-      context += `**Members:** ${parsedMembers.map(m => m.name + (m.age ? ` (${m.age}yo)` : '')).join(', ')}\n`;
-    }
-
-    if (household.budget_weekly) {
-      context += `**Weekly Budget:** $${household.budget_weekly.toFixed(2)}\n`;
-    }
-
-    if (allergies.length > 0) {
-      context += `\n**🚨 CRITICAL - ALLERGIES (MUST AVOID):** ${[...new Set(allergies)].join(', ')}\n`;
-    }
-
-    if (intolerances.length > 0) {
-      context += `**Intolerances:** ${[...new Set(intolerances)].join(', ')}\n`;
-    }
-
-    if (restrictions.length > 0) {
-      context += `**Dietary Restrictions:** ${[...new Set(restrictions)].join(', ')}\n`;
-    }
-
-    if (likes.length > 0) {
-      context += `**Preferences (Likes):** ${[...new Set(likes)].join(', ')}\n`;
-    }
-
-    if (dislikes.length > 0) {
-      context += `**Dislikes:** ${[...new Set(dislikes)].join(', ')}\n`;
-    }
-
-    context += '\n---\n';
-    return context;
+    // Return structured context data
+    return {
+      householdId: household.id,
+      householdName: household.name,
+      memberCount: members.length,
+      members: parsedMembers.map(m => `${m.name}${m.age ? ` (${m.age}yo)` : ''}`).join(', '),
+      memberDetails: parsedMembers,
+      weeklyBudget: household.budget_weekly ? `$${parseFloat(String(household.budget_weekly)).toFixed(2)}` : 'Not set',
+      dietaryRestrictions: formattedRestrictions,
+      season: getCurrentSeason(),
+      location: 'United States' // TODO: Get from household data when available
+    };
   } catch (error) {
     console.error('Error building household context:', error);
-    return '';
+    return null;
   }
+}
+
+// Helper to get current season
+function getCurrentSeason(): string {
+  const month = new Date().getMonth();
+  if (month >= 2 && month <= 4) return 'Spring';
+  if (month >= 5 && month <= 7) return 'Summer';
+  if (month >= 8 && month <= 10) return 'Fall';
+  return 'Winter';
+}
+
+// Helper to replace template variables in system prompt
+function replaceTemplateVariables(prompt: string, context: any): string {
+  if (!context) {
+    // Return prompt with empty placeholders if no context
+    return prompt
+      .replace(/\{\{SESSION_CONTEXT\}\}/g, '')
+      .replace(/\{\{HOUSEHOLD_ID\}\}/g, '')
+      .replace(/\{\{HOUSEHOLD_MEMBERS\}\}/g, 'Not available')
+      .replace(/\{\{DIETARY_RESTRICTIONS\}\}/g, 'None specified')
+      .replace(/\{\{WEEKLY_BUDGET\}\}/g, 'Not set')
+      .replace(/\{\{FOOD_PREFERENCES\}\}/g, 'None specified')
+      .replace(/\{\{MEAL_HISTORY\}\}/g, 'Not available')
+      .replace(/\{\{PANTRY_INVENTORY\}\}/g, 'Not available')
+      .replace(/\{\{USER_LOCATION\}\}/g, 'United States')
+      .replace(/\{\{CURRENT_SEASON\}\}/g, getCurrentSeason());
+  }
+
+  // Build session context summary
+  const sessionContext = `Household: "${context.householdName}" with ${context.memberCount} member(s)`;
+
+  // Format dietary restrictions
+  const dietaryInfo = [];
+  if (context.dietaryRestrictions.critical_allergies.length > 0) {
+    dietaryInfo.push(`🚨 CRITICAL ALLERGIES (MUST AVOID): ${context.dietaryRestrictions.critical_allergies.join(', ')}`);
+  }
+  if (context.dietaryRestrictions.intolerances.length > 0) {
+    dietaryInfo.push(`Intolerances: ${context.dietaryRestrictions.intolerances.join(', ')}`);
+  }
+  if (context.dietaryRestrictions.restrictions.length > 0) {
+    dietaryInfo.push(`Restrictions: ${context.dietaryRestrictions.restrictions.join(', ')}`);
+  }
+
+  // Format preferences
+  const preferenceInfo = [];
+  if (context.dietaryRestrictions.preferences.length > 0) {
+    preferenceInfo.push(`Likes: ${context.dietaryRestrictions.preferences.join(', ')}`);
+  }
+  if (context.dietaryRestrictions.dislikes.length > 0) {
+    preferenceInfo.push(`Dislikes: ${context.dietaryRestrictions.dislikes.join(', ')}`);
+  }
+
+  return prompt
+    .replace(/\{\{SESSION_CONTEXT\}\}/g, sessionContext)
+    .replace(/\{\{HOUSEHOLD_ID\}\}/g, context.householdId)
+    .replace(/\{\{HOUSEHOLD_MEMBERS\}\}/g, context.members)
+    .replace(/\{\{DIETARY_RESTRICTIONS\}\}/g, dietaryInfo.length > 0 ? dietaryInfo.join('; ') : 'None')
+    .replace(/\{\{WEEKLY_BUDGET\}\}/g, context.weeklyBudget)
+    .replace(/\{\{FOOD_PREFERENCES\}\}/g, preferenceInfo.length > 0 ? preferenceInfo.join('; ') : 'None specified')
+    .replace(/\{\{MEAL_HISTORY\}\}/g, 'Not available yet')
+    .replace(/\{\{PANTRY_INVENTORY\}\}/g, 'Not tracked yet')
+    .replace(/\{\{USER_LOCATION\}\}/g, context.location)
+    .replace(/\{\{CURRENT_SEASON\}\}/g, context.season);
 }
 
 // Chat endpoint with conversation history persistence
@@ -260,10 +375,13 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
 
   try {
     // Load household context if provided
-    let householdContext = '';
+    let householdContext = null;
     if (householdId) {
       householdContext = await buildHouseholdContext(householdId);
     }
+
+    // Replace template variables in system prompt
+    const systemPrompt = replaceTemplateVariables(SYSTEM_PROMPT, householdContext);
 
     // Load conversation history from database if enabled
     if (useHistory) {
@@ -277,9 +395,6 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
           content: msg.content,
         }));
     }
-
-    // Build system prompt with household context
-    const systemPrompt = SYSTEM_PROMPT + householdContext;
 
     // Build messages array with system prompt, history, and new message
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
