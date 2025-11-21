@@ -1,6 +1,7 @@
 /* client/src/pages/DashboardPage.tsx */
-import { useState, useEffect } from 'react';
-import { Box, Grid, Typography, Avatar, Chip } from '@mui/material';
+import { useEffect } from 'react';
+import { Box, Typography, Avatar, Chip, Grid } from '@mui/material';
+
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -13,15 +14,18 @@ import {
 import { motion } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
+import BudgetTracker from '../components/budget/BudgetTracker';
 import { RootState, AppDispatch } from '../features/store';
 import { fetchHouseholdSummary } from '../features/household/householdSlice';
 import { sanitizeText } from '../utils/sanitize';
+import { useTheme } from '../contexts/ThemeContext';
 
 const DashboardPage = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
   const { summary } = useSelector((state: RootState) => state.household);
+  const { mode } = useTheme();
 
   // Fetch household summary on mount
   useEffect(() => {
@@ -44,27 +48,66 @@ const DashboardPage = () => {
     show: { y: 0, opacity: 1 }
   };
 
+  // Theme-aware aurora colors - Vibrant 5-color gradient
+  const auroraColors = mode === 'dark'
+    ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
+    : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
+
   return (
-    <AuroraBackground speed={30} colors={['#1a2a6c', '#b21f1f', '#fdbb2d']}>
-      <Box sx={{ p: { xs: 2, md: 4, lg: 6 }, maxWidth: '1800px', mx: 'auto', position: 'relative', zIndex: 2 }}>
+    <AuroraBackground speed={30} colors={auroraColors}>
+      <Box sx={{
+        p: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 },
+        maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1800px' },
+        mx: 'auto',
+        position: 'relative',
+        zIndex: 2,
+        width: '100%'
+      }}>
 
         {/* Header: Editorial Style */}
-        <Box sx={{ mb: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Box sx={{
+          mb: { xs: 3, md: 5 },
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          flexWrap: 'wrap',
+          gap: 2
+        }}>
           <Box>
-            <Typography variant="overline" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 3 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                letterSpacing: 3,
+                fontSize: { xs: '0.7rem', md: '0.75rem' }
+              }}
+            >
               OVERVIEW
             </Typography>
-            <Typography variant="h2" fontWeight="800" sx={{ color: 'white', fontSize: { xs: '2.5rem', md: '4rem' }, lineHeight: 1 }}>
+            <Typography
+              variant="h2"
+              fontWeight="900"
+              sx={{
+                background: mode === 'dark'
+                  ? 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)'
+                  : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem', lg: '4rem' },
+                lineHeight: 1
+              }}
+            >
               Hello, {user?.name ? sanitizeText(user.name.split(' ')[0]) : 'Chef'}.
             </Typography>
           </Box>
           <Avatar
             sx={{
-              width: 64,
-              height: 64,
-              bgcolor: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              display: { xs: 'none', md: 'flex' }
+              width: { xs: 48, md: 64 },
+              height: { xs: 48, md: 64 },
+              bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+              border: mode === 'dark' ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)',
+              color: mode === 'dark' ? 'white' : '#000000',
+              display: { xs: 'flex', sm: 'flex' }
             }}
           >
             {user?.name?.[0] || 'C'}
@@ -72,155 +115,260 @@ const DashboardPage = () => {
         </Box>
 
         {/* BENTO GRID LAYOUT */}
-        <Grid container spacing={3} component={motion.div} variants={container} initial="hidden" animate="show">
+        <Grid container spacing={{ xs: 2, md: 3 }}>
 
           {/* 1. HERO: AI Chef (Large) */}
-          <Grid item xs={12} md={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <GlassCard
               intensity="ultra"
-              component={motion.div}
-              variants={item}
               onClick={() => navigate('/chat')}
               sx={{
                 height: '100%',
-                minHeight: 350,
+                minHeight: { xs: 300, md: 350 },
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 cursor: 'pointer',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                p: { xs: 3, md: 4 }
               }}
             >
-              <Box sx={{ position: 'absolute', top: 20, right: 20 }}>
-                <ArrowOutward sx={{ color: 'white', opacity: 0.7 }} />
+              <Box sx={{ position: 'absolute', top: { xs: 16, md: 20 }, right: { xs: 16, md: 20 } }}>
+                <ArrowOutward sx={{
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  opacity: 0.7
+                }} />
               </Box>
 
               <Box>
                 <Chip
                   icon={<AutoAwesome sx={{ "&&": { color: "#FFD700" } }} />}
                   label="AI Assistant"
-                  sx={{ bgcolor: 'rgba(0,0,0,0.3)', color: 'white', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', mb: 2 }}
+                  sx={{
+                    bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
+                    color: mode === 'dark' ? 'white' : '#000000',
+                    backdropFilter: 'blur(10px)',
+                    border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                    mb: 2,
+                    fontSize: { xs: '0.75rem', md: '0.8125rem' }
+                  }}
                 />
-                <Typography variant="h3" fontWeight="700" sx={{ color: 'white', mb: 1 }}>
+                <Typography
+                  variant="h3"
+                  fontWeight="900"
+                  sx={{
+                    background: mode === 'dark'
+                      ? 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)'
+                      : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    mb: 1,
+                    fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' }
+                  }}
+                >
                   Plan your next meal
                 </Typography>
-                <Typography variant="body1" sx={{ color: 'rgba(255,255,255,0.7)', maxWidth: '500px', fontSize: '1.1rem' }}>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                    maxWidth: '500px',
+                    fontSize: { xs: '1rem', md: '1.1rem' }
+                  }}
+                >
                   I can help you generate a meal plan based on your current inventory or cravings.
                 </Typography>
               </Box>
 
               <Box sx={{
-                mt: 4,
+                mt: { xs: 3, md: 4 },
                 p: 2,
-                bgcolor: 'rgba(255,255,255,0.1)',
+                bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                 borderRadius: 3,
                 display: 'flex',
                 alignItems: 'center',
                 gap: 2,
                 backdropFilter: 'blur(10px)'
               }}>
-                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4ECDC4', boxShadow: '0 0 10px #4ECDC4' }} />
-                <Typography sx={{ color: 'rgba(255,255,255,0.9)' }}>
+                <Box sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: '#4ECDC4',
+                  boxShadow: '0 0 10px #4ECDC4'
+                }} />
+                <Typography sx={{
+                  color: mode === 'dark' ? 'rgba(255,255,255,0.9)' : '#000000',
+                  fontSize: { xs: '0.9rem', md: '1rem' }
+                }}>
                   "Suggest a high-protein dinner under $15..."
                 </Typography>
               </Box>
             </GlassCard>
           </Grid>
 
-          {/* 2. STATS: Budget (Tall) */}
-          <Grid item xs={12} sm={6} md={4}>
-            <GlassCard
-              intensity="strong"
-              component={motion.div}
-              variants={item}
-              sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}
-            >
-              <Box sx={{ position: 'relative', width: 150, height: 150, mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="150" height="150" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="75" cy="75" r="60" stroke="rgba(255,255,255,0.1)" strokeWidth="10" fill="transparent" />
-                  <circle
-                    cx="75"
-                    cy="75"
-                    r="60"
-                    stroke="#4ECDC4"
-                    strokeWidth="10"
-                    fill="transparent"
-                    strokeDasharray="377"
-                    strokeDashoffset="100"
-                    strokeLinecap="round"
-                    component={motion.circle}
-                    initial={{ strokeDashoffset: 377 }}
-                    animate={{ strokeDashoffset: 100 }}
-                    transition={{ duration: 1.5, ease: "easeOut" }}
-                  />
-                </svg>
-                <Box sx={{ position: 'absolute', textAlign: 'center' }}>
-                  <Typography variant="h4" fontWeight="bold" color="white">72%</Typography>
-                  <Typography variant="caption" color="rgba(255,255,255,0.6)">SPENT</Typography>
-                </Box>
-              </Box>
-              <Typography variant="h6" color="white">Weekly Budget</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                ${summary?.stats?.weeklyBudget ? 144 : 144} / ${summary?.stats?.weeklyBudget || 200}
-              </Typography>
-            </GlassCard>
+          {/* 2. Budget Tracker - Full Width */}
+          <Grid size={{ xs: 12 }}>
+            <motion.div variants={item}>
+              <BudgetTracker
+                total={200}
+                spent={144}
+              />
+            </motion.div>
           </Grid>
 
           {/* 3. QUICK ACTION: Shopping List (Square) */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <GlassCard
-              intensity="medium"
+              intensity="ultra"
               component={motion.div}
               variants={item}
               onClick={() => navigate('/shopping-list')}
-              sx={{ height: 200, cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+              sx={{
+                height: { xs: 180, md: 200 },
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                p: { xs: 2.5, md: 3 }
+              }}
             >
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <ShoppingCartOutlined sx={{ color: 'white', fontSize: 30 }} />
-                <Typography variant="h4" fontWeight="bold" color="white">12</Typography>
+                <ShoppingCartOutlined sx={{
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  fontSize: { xs: 28, md: 30 }
+                }} />
+                <Typography
+                  variant="h4"
+                  fontWeight="bold"
+                  sx={{
+                    color: mode === 'dark' ? 'white' : '#000000',
+                    fontSize: { xs: '1.75rem', md: '2rem' }
+                  }}
+                >
+                  12
+                </Typography>
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight="bold" color="white">Shopping List</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>3 items urgent</Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    color: mode === 'dark' ? 'white' : '#000000',
+                    fontSize: { xs: '1.1rem', md: '1.25rem' }
+                  }}
+                >
+                  Shopping List
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                    fontSize: { xs: '0.85rem', md: '0.875rem' }
+                  }}
+                >
+                  3 items urgent
+                </Typography>
               </Box>
             </GlassCard>
           </Grid>
 
           {/* 4. QUICK ACTION: Meal Plan (Square) */}
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <GlassCard
-              intensity="medium"
+              intensity="ultra"
               component={motion.div}
               variants={item}
               onClick={() => navigate('/meal-plan')}
-              sx={{ height: 200, cursor: 'pointer', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
+              sx={{
+                height: { xs: 180, md: 200 },
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                p: { xs: 2.5, md: 3 }
+              }}
             >
                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <RestaurantMenu sx={{ color: 'white', fontSize: 30 }} />
-                <Typography variant="h4" fontWeight="bold" color="white">3</Typography>
+                <RestaurantMenu sx={{
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  fontSize: { xs: 28, md: 30 }
+                }} />
+                <Typography
+                  variant="h4"
+                  fontWeight="bold"
+                  sx={{
+                    color: mode === 'dark' ? 'white' : '#000000',
+                    fontSize: { xs: '1.75rem', md: '2rem' }
+                  }}
+                >
+                  3
+                </Typography>
               </Box>
               <Box>
-                <Typography variant="h6" fontWeight="bold" color="white">Today's Menu</Typography>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>Dinner not prepped</Typography>
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    color: mode === 'dark' ? 'white' : '#000000',
+                    fontSize: { xs: '1.1rem', md: '1.25rem' }
+                  }}
+                >
+                  Today's Menu
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                    fontSize: { xs: '0.85rem', md: '0.875rem' }
+                  }}
+                >
+                  Dinner not prepped
+                </Typography>
               </Box>
             </GlassCard>
           </Grid>
 
           {/* 5. INSIGHT: Streak/Health (Rectangle) */}
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
              <GlassCard
-              intensity="light"
+              intensity="ultra"
               component={motion.div}
               variants={item}
-              sx={{ height: 200, display: 'flex', alignItems: 'center', gap: 3 }}
+              sx={{
+                height: { xs: 180, md: 200 },
+                display: 'flex',
+                alignItems: 'center',
+                gap: { xs: 2, md: 3 },
+                p: { xs: 2.5, md: 3 }
+              }}
             >
-               <Box sx={{ p: 2, bgcolor: 'rgba(255,107,107,0.2)', borderRadius: '50%' }}>
-                 <TrendingUp sx={{ fontSize: 32, color: '#FF6B6B' }} />
+               <Box sx={{
+                 p: 2,
+                 bgcolor: 'rgba(255,107,107,0.2)',
+                 borderRadius: '50%'
+               }}>
+                 <TrendingUp sx={{ fontSize: { xs: 28, md: 32 }, color: '#FF6B6B' }} />
                </Box>
                <Box>
-                 <Typography variant="h5" fontWeight="bold" color="white">5 Day Streak</Typography>
-                 <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                 <Typography
+                   variant="h5"
+                   fontWeight="bold"
+                   sx={{
+                     color: mode === 'dark' ? 'white' : '#000000',
+                     fontSize: { xs: '1.15rem', md: '1.5rem' }
+                   }}
+                 >
+                   5 Day Streak
+                 </Typography>
+                 <Typography
+                   variant="body2"
+                   sx={{
+                     color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
+                     fontSize: { xs: '0.85rem', md: '0.875rem' }
+                   }}
+                 >
                    You stayed under budget for 5 days in a row!
                  </Typography>
                </Box>

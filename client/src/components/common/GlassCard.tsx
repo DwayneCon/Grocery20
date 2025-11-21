@@ -15,8 +15,11 @@ const GlassCard = ({
   hover = true,
   intensity = 'medium',
   noBorder = false,
+  sx = {}, // Default to empty object
   ...props
 }: GlassCardProps) => {
+
+  // Define styles with strict string values for colors
   const intensityMap = {
     light: {
       background: 'rgba(255, 255, 255, 0.03)',
@@ -31,7 +34,7 @@ const GlassCard = ({
       boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.2)',
     },
     strong: {
-      background: 'rgba(20, 20, 25, 0.6)', // Darker base for contrast
+      background: 'rgba(20, 20, 25, 0.6)',
       backdropFilter: 'blur(40px) saturate(200%)',
       border: '1px solid rgba(255, 255, 255, 0.08)',
       boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
@@ -44,52 +47,29 @@ const GlassCard = ({
     }
   };
 
-  const style = intensityMap[intensity];
+  // Safe fallback if intensity is invalid
+  const baseStyle = intensityMap[intensity] || intensityMap['medium'];
 
-  if (noBorder) delete style.border;
+  // Create a clean style object
+  const finalStyle = {
+    ...baseStyle,
+    ...(noBorder && { border: 'none' }),
+    borderRadius: '24px',
+    padding: '24px', // Explicit px string
+    position: 'relative' as const,
+    overflow: 'hidden' as const,
+    ...sx
+  };
 
   return (
     <Box
       component={motion.div}
-      whileHover={hover ? {
-        y: -5,
-        transition: { duration: 0.3, ease: "easeOut" }
-      } : undefined}
+      whileHover={hover ? { y: -5 } : undefined}
       whileTap={hover ? { scale: 0.98 } : undefined}
-      sx={{
-        ...style,
-        borderRadius: '24px', // Smoother corners
-        padding: 3,
-        position: 'relative',
-        overflow: 'hidden',
-        ...props.sx,
-      }}
+      sx={finalStyle}
       {...props}
     >
-      {/* Shine Effect on Hover */}
-      {hover && (
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(105deg, transparent 20%, rgba(255,255,255,0.03) 25%, transparent 30%)',
-            transform: 'translateX(-100%)',
-            transition: 'transform 0.6s',
-            zIndex: 0,
-            pointerEvents: 'none',
-            '.MuiBox-root:hover &': {
-              transform: 'translateX(100%)',
-              transition: 'transform 0.8s',
-            }
-          }}
-        />
-      )}
-      <Box sx={{ position: 'relative', zIndex: 1 }}>
-        {children}
-      </Box>
+      {children}
     </Box>
   );
 };

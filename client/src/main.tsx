@@ -3,10 +3,10 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { CssBaseline } from '@mui/material';
 import App from './App';
 import { store } from './features/store';
-import { revolutionaryLightTheme } from './styles/revolutionary-theme';
+import { ThemeProvider } from './contexts/ThemeContext';
 import './styles/index.css';
 
 // Create React Query client
@@ -24,12 +24,12 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <ThemeProvider theme={revolutionaryLightTheme}>
+        <ThemeProvider>
+          <BrowserRouter>
             <CssBaseline />
             <App />
-          </ThemeProvider>
-        </BrowserRouter>
+          </BrowserRouter>
+        </ThemeProvider>
       </QueryClientProvider>
     </Provider>
   </React.StrictMode>
@@ -38,17 +38,20 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(
+    const swPath = import.meta.env.DEV ? '/dev-dist/sw.js' : '/sw.js';
+    navigator.serviceWorker.register(swPath).then(
       (registration) => {
         console.log('✅ Service Worker registered successfully:', registration.scope);
 
-        // Check for updates every hour
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000);
+        // Check for updates every hour in production
+        if (import.meta.env.PROD) {
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+        }
       },
       (error) => {
-        console.error('❌ Service Worker registration failed:', error);
+        console.warn('⚠️  Service Worker registration failed (this is normal in development):', error.message);
       }
     );
   });

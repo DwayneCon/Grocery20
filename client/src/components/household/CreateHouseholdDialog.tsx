@@ -69,12 +69,12 @@ const CreateHouseholdDialog = ({ open, onClose, onSuccess }: CreateHouseholdDial
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <HomeIcon color="primary" />
+          <HomeIcon sx={{ color: '#4ECDC4' }} />
           <Typography variant="h6">Create Your Household</Typography>
         </Box>
       </DialogTitle>
       <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" sx={{ color: 'rgba(0,0,0,0.6)', mb: 3 }}>
           Set up your household to start planning meals for your family. You can add members and
           their preferences after creation.
         </Typography>

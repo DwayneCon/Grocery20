@@ -1,12 +1,15 @@
 /* client/src/pages/ChatPage.tsx */
 import { useState, useRef, useEffect } from 'react';
-import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar } from '@mui/material';
-import { Send, SmartToy, Person, Mic } from '@mui/icons-material';
+import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar, Tooltip } from '@mui/material';
+import { Send, SmartToy, Person, Mic, MicOff } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import { sanitizeAIContent, sanitizeInput } from '../utils/sanitize';
 import { aiService, ConversationMessage } from '../services/aiService';
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
+import QuickActionChips from '../components/chat/QuickActionChips';
+import MessageReactions from '../components/chat/MessageReactions';
 
 interface Message {
   id: string;
@@ -27,16 +30,43 @@ const ChatPage = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showQuickActions, setShowQuickActions] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Voice recognition
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    resetTranscript,
+    hasRecognitionSupport,
+    error: voiceError,
+  } = useSpeechRecognition();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
+  // Update input when voice transcript changes
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
-    const sanitizedInput = sanitizeInput(input);
+  // Handle voice error
+  useEffect(() => {
+    if (voiceError) {
+      setError(voiceError);
+    }
+  }, [voiceError]);
+
+  const handleSend = async (messageText?: string) => {
+    const textToSend = messageText || input;
+    if (!textToSend.trim()) return;
+
+    const sanitizedInput = sanitizeInput(textToSend);
     const userMsg: Message = {
       id: Date.now().toString(),
       text: sanitizedInput,
@@ -46,8 +76,10 @@ const ChatPage = () => {
 
     setMessages(prev => [...prev, userMsg]);
     setInput('');
+    setShowQuickActions(false);
     setIsTyping(true);
     setError(null);
+    resetTranscript();
 
     try {
       // Build conversation history for context
@@ -95,8 +127,25 @@ const ChatPage = () => {
     }
   };
 
+  const handleQuickAction = (action: string) => {
+    handleSend(action);
+  };
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const handleReaction = (messageId: string, reaction: string) => {
+    console.log('Reaction:', messageId, reaction);
+    // You can implement reaction tracking here
+  };
+
   return (
-    <AuroraBackground colors={['#2C3E50', '#4CA1AF', '#000000']} speed={25}>
+    <AuroraBackground colors={['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']} speed={25}>
       {/* Error Snackbar */}
       <Snackbar
         open={!!error}
@@ -121,7 +170,12 @@ const ChatPage = () => {
 
         {/* Messages Area */}
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: { xs: 2, md: 6 }, pt: 4, pb: 20 }}>
-          <List>
+          {/* Quick Action Chips - Show at the start */}
+          {showQuickActions && messages.length === 1 && (
+            <QuickActionChips onActionClick={handleQuickAction} />
+          )}
+
+          <List role="log" aria-live="polite" aria-label="Chat messages">
             <AnimatePresence>
               {messages.map((message) => (
                 <ListItem
@@ -144,26 +198,40 @@ const ChatPage = () => {
                     maxWidth: { xs: '90%', md: '70%' }
                   }}>
                     <Avatar sx={{
-                      bgcolor: message.sender === 'user' ? 'primary.main' : 'transparent',
+                      bgcolor: message.sender === 'user' ? '#4ECDC4' : 'rgba(255,255,255,0.05)',
                       border: message.sender === 'ai' ? '1px solid rgba(255,255,255,0.3)' : 'none',
                     }}>
                       {message.sender === 'user' ? <Person /> : <SmartToy sx={{ color: '#4ECDC4' }} />}
                     </Avatar>
 
-                    <GlassCard
-                      intensity={message.sender === 'user' ? 'strong' : 'medium'}
-                      sx={{
-                        p: 2.5,
-                        borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
-                        background: message.sender === 'user'
-                          ? 'linear-gradient(135deg, rgba(78, 205, 196, 0.8), rgba(44, 62, 80, 0.8))'
-                          : 'rgba(255, 255, 255, 0.1)',
-                      }}
-                    >
-                      <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
-                        {message.text}
-                      </Typography>
-                    </GlassCard>
+                    <Box>
+                      <GlassCard
+                        intensity={message.sender === 'user' ? 'ultra' : 'ultra'}
+                        sx={{
+                          p: 2.5,
+                          borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
+                          background: message.sender === 'user'
+                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                            : 'rgba(255, 255, 255, 0.1)',
+                          boxShadow: message.sender === 'user'
+                            ? '0 8px 32px rgba(102, 126, 234, 0.3)'
+                            : 'none'
+                        }}
+                      >
+                        <Typography variant="body1" sx={{ color: 'white', lineHeight: 1.6 }}>
+                          {message.text}
+                        </Typography>
+                      </GlassCard>
+
+                      {/* Message Reactions - Only for AI messages */}
+                      {message.sender === 'ai' && message.id !== '1' && (
+                        <MessageReactions
+                          messageId={message.id}
+                          messageText={message.text}
+                          onReaction={handleReaction}
+                        />
+                      )}
+                    </Box>
                   </Box>
                 </ListItem>
               ))}
@@ -198,34 +266,54 @@ const ChatPage = () => {
             borderRadius: '50px',
             boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
           }}>
-            <IconButton sx={{ color: '#4ECDC4' }}>
-              <Mic />
-            </IconButton>
+            {hasRecognitionSupport && (
+              <Tooltip title={isListening ? 'Stop recording' : 'Start voice input'} arrow>
+                <IconButton
+                  onClick={handleVoiceToggle}
+                  sx={{
+                    color: isListening ? '#FF6B6B' : '#4ECDC4',
+                    animation: isListening ? 'pulse 1.5s infinite' : 'none',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.5 },
+                    },
+                  }}
+                  aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                >
+                  {isListening ? <MicOff /> : <Mic />}
+                </IconButton>
+              </Tooltip>
+            )}
             <TextField
               fullWidth
               variant="standard"
-              placeholder="Ask for a meal plan..."
+              placeholder={isListening ? 'Listening...' : 'Ask for a meal plan...'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               InputProps={{
                 disableUnderline: true,
                 sx: { color: 'white', fontSize: '1.1rem' }
               }}
               sx={{ flex: 1 }}
+              aria-label="Chat message input"
             />
-            <IconButton
-              onClick={handleSend}
-              disabled={!input.trim()}
-              sx={{
-                bgcolor: input.trim() ? '#4ECDC4' : 'rgba(255,255,255,0.1)',
-                color: input.trim() ? 'black' : 'white',
-                '&:hover': { bgcolor: '#45b7af' },
-                transition: 'all 0.2s'
-              }}
-            >
-              <Send fontSize="small" />
-            </IconButton>
+            <Tooltip title="Send message" arrow>
+              <IconButton
+                onClick={() => handleSend()}
+                disabled={!input.trim()}
+                sx={{
+                  bgcolor: input.trim() ? '#4ECDC4' : 'rgba(255,255,255,0.1)',
+                  color: input.trim() ? 'black' : 'white',
+                  '&:hover': { bgcolor: input.trim() ? '#45b7af' : 'rgba(255,255,255,0.15)' },
+                  transition: 'all 0.2s',
+                  '&:disabled': { opacity: 0.5 }
+                }}
+                aria-label="Send message"
+              >
+                <Send fontSize="small" />
+              </IconButton>
+            </Tooltip>
           </GlassCard>
         </Box>
       </Box>
