@@ -81,13 +81,8 @@ export const updateMealSchema = Joi.object({
 // AI validation schemas
 export const chatSchema = Joi.object({
   message: Joi.string().min(1).max(5000).required(),
-  conversationHistory: Joi.array().items(
-    Joi.object({
-      role: Joi.string().valid('user', 'assistant', 'system').required(),
-      content: Joi.string().required(),
-    })
-  ).optional(),
   householdId: Joi.string().uuid().optional(),
+  useHistory: Joi.boolean().optional(),
 });
 
 export const aiMealPlanSchema = Joi.object({
