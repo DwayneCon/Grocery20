@@ -236,24 +236,29 @@ export function parseMealPlan(text: string): ParsedMealPlan {
  * Detect if text contains a meal plan structure
  */
 export function isMealPlan(text: string): boolean {
-  const mealIndicators = [
-    /🍽️/,
-    /Prep:\s*\d+/i,
-    /Cook:\s*\d+/i,
-    /Cost.*\$/i,
-    /Ingredients:/i,
-    /Instructions:/i,
-    /(Breakfast|Lunch|Dinner):/i,
-    /(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)/i,
-  ];
+  // Must have meal emoji AND timing/cost info to be considered a meal plan
+  const hasMealEmoji = /[🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳]/.test(text);
+  const hasTimingInfo = /Prep:\s*\d+/i.test(text) || /Cook:\s*\d+/i.test(text);
+  const hasCostInfo = /Cost.*\$\d/i.test(text) || /\$\d+\.\d+/.test(text);
+  const hasIngredients = /Ingredients:/i.test(text);
+  const hasInstructions = /Instructions:/i.test(text);
 
-  let matchCount = 0;
-  for (const indicator of mealIndicators) {
-    if (indicator.test(text)) {
-      matchCount++;
-    }
+  // Strong indicators: emoji + (timing OR cost) + (ingredients OR instructions)
+  if (hasMealEmoji && (hasTimingInfo || hasCostInfo) && (hasIngredients || hasInstructions)) {
+    return true;
   }
 
-  // If we have 2 or more meal indicators, it's likely a meal plan
-  return matchCount >= 2;
+  // Medium indicators: Must have at least 3 of these
+  const indicators = [
+    hasMealEmoji,
+    hasTimingInfo,
+    hasCostInfo,
+    hasIngredients,
+    hasInstructions
+  ];
+
+  const matchCount = indicators.filter(Boolean).length;
+
+  // Require at least 3 strong indicators to avoid false positives
+  return matchCount >= 3;
 }

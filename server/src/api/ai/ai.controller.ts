@@ -246,12 +246,16 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
       { role: 'user', content: message },
     ];
 
+    // Detect if user is requesting a meal plan (needs more tokens)
+    const isMealPlanRequest = /\b(meal plan|week of meals|plan.*meals?|suggest.*meals?|menu for|what should.*eat)\b/i.test(message);
+    const maxTokens = isMealPlanRequest ? 2500 : 1000;
+
     // Call OpenAI API
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
       messages,
       temperature: 0.8,
-      max_tokens: 800,
+      max_tokens: maxTokens,
       presence_penalty: 0.3,
       frequency_penalty: 0.3,
     });
