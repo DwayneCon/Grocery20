@@ -8,7 +8,7 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  Grid,
+  Grid2 as Grid,
   CircularProgress,
   Alert,
   Tabs,
@@ -282,7 +282,7 @@ const BudgetPage = () => {
             </Box>
 
             <Grid container spacing={3}>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                     Remaining
@@ -292,7 +292,7 @@ const BudgetPage = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                     Saved
@@ -302,7 +302,7 @@ const BudgetPage = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Box sx={{ p: 2, bgcolor: 'rgba(255,255,255,0.05)', borderRadius: 2 }}>
                   <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
                     Usage
@@ -416,13 +416,13 @@ const BudgetPage = () => {
       <TabPanel value={activeTab} index={1}>
         {budgetStats && (
           <Grid container spacing={3}>
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <GlassCard intensity="medium" sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 3 }}>
                   Last 3 Months Summary
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Total Allocated
@@ -432,7 +432,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Total Spent
@@ -442,7 +442,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Total Saved
@@ -452,7 +452,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Avg. Usage
@@ -466,13 +466,13 @@ const BudgetPage = () => {
               </GlassCard>
             </Grid>
 
-            <Grid item xs={12} md={6}>
+            <Grid size={{ xs: 12, md: 6 }}>
               <GlassCard intensity="medium" sx={{ p: 3 }}>
                 <Typography variant="h6" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 3 }}>
                   Weekly Averages
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Avg. Budget
@@ -482,7 +482,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Avg. Spent
@@ -492,7 +492,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Avg. Saved
@@ -502,7 +502,7 @@ const BudgetPage = () => {
                       </Typography>
                     </Box>
                   </Grid>
-                  <Grid item xs={6}>
+                  <Grid size={6}>
                     <Box>
                       <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
                         Total Weeks
