@@ -7,6 +7,7 @@ import ChatPage from './pages/ChatPage';
 import MealPlanPage from './pages/MealPlanPage';
 import ShoppingListPage from './pages/ShoppingListPage';
 import HouseholdPage from './pages/HouseholdPage';
+import BudgetPage from './pages/BudgetPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -25,6 +26,7 @@ function App() {
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/meal-plan" element={<MealPlanPage />} />
           <Route path="/shopping-list" element={<ShoppingListPage />} />
+          <Route path="/budget" element={<BudgetPage />} />
           <Route path="/household" element={<HouseholdPage />} />
         </Route>
 

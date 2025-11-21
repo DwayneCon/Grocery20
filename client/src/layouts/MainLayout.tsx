@@ -6,6 +6,7 @@ import {
   Chat as ChatIcon,
   Restaurant as RestaurantIcon,
   ShoppingCart as ShoppingCartIcon,
+  AccountBalanceWallet as BudgetIcon,
   People as PeopleIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
@@ -31,6 +32,7 @@ const MainLayout = () => {
     { text: 'Household', icon: <PeopleIcon />, path: '/household' },
     { text: 'Meal Plan', icon: <RestaurantIcon />, path: '/meal-plan' },
     { text: 'Shopping List', icon: <ShoppingCartIcon />, path: '/shopping-list' },
+    { text: 'Budget', icon: <BudgetIcon />, path: '/budget' },
   ];
 
   const handleLogout = () => {
