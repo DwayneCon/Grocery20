@@ -9,6 +9,12 @@ interface BudgetTrackerProps {
   householdId: string;
 }
 
+// Helper function to safely convert to number
+const toNumber = (value: any): number => {
+  const num = parseFloat(value);
+  return isNaN(num) ? 0 : num;
+};
+
 const BudgetTracker = ({ householdId }: BudgetTrackerProps) => {
   const [budget, setBudget] = useState<Budget | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,10 +85,10 @@ const BudgetTracker = ({ householdId }: BudgetTrackerProps) => {
     );
   }
 
-  const spent = budget.amountSpent;
-  const total = budget.budgetAllocated;
-  const saved = budget.amountSaved;
-  const remaining = budget.remaining;
+  const spent = toNumber(budget.amountSpent);
+  const total = toNumber(budget.budgetAllocated);
+  const saved = toNumber(budget.amountSaved);
+  const remaining = toNumber(budget.remaining);
   const percentage = Math.min(100, Math.max(0, (spent / total) * 100));
   const isOverBudget = spent > total;
 
