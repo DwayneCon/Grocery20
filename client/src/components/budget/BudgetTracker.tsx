@@ -26,9 +26,14 @@ const BudgetTracker = ({ householdId }: BudgetTrackerProps) => {
           // No budget for current week - show empty state
           setBudget(null);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error fetching budget:', err);
-        setError('Failed to load budget data');
+        // Handle authentication errors specifically
+        if (err.response?.status === 401) {
+          setError('Please log in to view your budget');
+        } else {
+          setError('Failed to load budget data');
+        }
       } finally {
         setLoading(false);
       }
