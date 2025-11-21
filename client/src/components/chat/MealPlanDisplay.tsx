@@ -1,7 +1,7 @@
 /* client/src/components/chat/MealPlanDisplay.tsx */
 import { useState } from 'react';
 import { Box, Typography, Alert, Chip, Snackbar } from '@mui/material';
-import { Breakfast, LunchDining, DinnerDining } from '@mui/icons-material';
+import { FreeBreakfast, LunchDining, DinnerDining } from '@mui/icons-material';
 import MealCard from './MealCard';
 import { ParsedMeal, ParsedMealPlan } from '../../utils/mealParser';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -163,7 +163,7 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
       )}
 
       {/* Meal Categories */}
-      {renderMealCategory('Breakfast', <Breakfast />, breakfast, '#FF9800', 0)}
+      {renderMealCategory('Breakfast', <FreeBreakfast />, breakfast, '#FF9800', 0)}
       {renderMealCategory('Lunch', <LunchDining />, lunch, '#4CAF50', breakfast.length)}
       {renderMealCategory('Dinner', <DinnerDining />, dinner, '#9C27B0', breakfast.length + lunch.length)}
 
