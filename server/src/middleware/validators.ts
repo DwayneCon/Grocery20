@@ -153,6 +153,42 @@ export const updateRecipeSchema = Joi.object({
   imageUrl: Joi.string().uri().optional(),
 });
 
+// Recipe rating validation schema
+export const rateRecipeSchema = Joi.object({
+  rating: Joi.number().integer().min(1).max(5).required(),
+  review: Joi.string().max(2000).optional().allow(''),
+  images: Joi.array().items(Joi.string().uri()).max(5).optional(),
+});
+
+// Budget tracking validation schemas
+export const createBudgetSchema = Joi.object({
+  householdId: Joi.string().uuid().required(),
+  weekStart: Joi.date().required(),
+  weekEnd: Joi.date().required(),
+  budgetAllocated: Joi.number().positive().required(),
+  notes: Joi.string().max(1000).optional().allow(''),
+});
+
+export const updateSpendingSchema = Joi.object({
+  amountSpent: Joi.number().min(0).optional(),
+  amountSaved: Joi.number().min(0).optional(),
+  dealsUsed: Joi.number().integer().min(0).optional(),
+});
+
+// Nutrition tracking validation schemas
+export const compareNutritionGoalsSchema = Joi.object({
+  mealPlanId: Joi.string().uuid().required(),
+  goals: Joi.object({
+    calories: Joi.number().min(0).optional(),
+    protein: Joi.number().min(0).optional(),
+    carbs: Joi.number().min(0).optional(),
+    fat: Joi.number().min(0).optional(),
+    fiber: Joi.number().min(0).optional(),
+    sugar: Joi.number().min(0).optional(),
+    sodium: Joi.number().min(0).optional(),
+  }).required(),
+});
+
 // Shopping list validation schemas
 export const createShoppingListSchema = Joi.object({
   householdId: Joi.string().uuid().required(),
