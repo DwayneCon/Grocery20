@@ -1,5 +1,6 @@
 /* client/src/components/chat/MealPlanDisplay.tsx */
-import { Box, Typography, Alert, Chip } from '@mui/material';
+import { useState } from 'react';
+import { Box, Typography, Alert, Chip, Snackbar } from '@mui/material';
 import { Breakfast, LunchDining, DinnerDining } from '@mui/icons-material';
 import MealCard from './MealCard';
 import { ParsedMeal, ParsedMealPlan } from '../../utils/mealParser';
@@ -11,10 +12,26 @@ interface MealPlanDisplayProps {
 
 const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
   const { mode } = useTheme();
+  const [acceptedMeals, setAcceptedMeals] = useState<ParsedMeal[]>([]);
+  const [rejectedMeals, setRejectedMeals] = useState<ParsedMeal[]>([]);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
 
   if (!mealPlan.hasMeals) {
     return null;
   }
+
+  const handleAccept = (meal: ParsedMeal) => {
+    setAcceptedMeals(prev => [...prev, meal]);
+    setSnackbarMessage(`✓ Added "${meal.name}" to your meal plan`);
+    console.log('Accepted meal:', meal);
+    // TODO: Save to database
+  };
+
+  const handleReject = (meal: ParsedMeal) => {
+    setRejectedMeals(prev => [...prev, meal]);
+    setSnackbarMessage(`✗ Removed "${meal.name}"`);
+    console.log('Rejected meal:', meal);
+  };
 
   // Group meals by meal type
   const groupMealsByType = (meals: ParsedMeal[]) => {
@@ -97,7 +114,13 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
         {/* Meal Cards in this category */}
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {meals.map((meal, idx) => (
-            <MealCard key={startIndex + idx} meal={meal} index={startIndex + idx} />
+            <MealCard
+              key={startIndex + idx}
+              meal={meal}
+              index={startIndex + idx}
+              onAccept={handleAccept}
+              onReject={handleReject}
+            />
           ))}
         </Box>
       </Box>
@@ -152,6 +175,8 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
               key={breakfast.length + lunch.length + dinner.length + idx}
               meal={meal}
               index={breakfast.length + lunch.length + dinner.length + idx}
+              onAccept={handleAccept}
+              onReject={handleReject}
             />
           ))}
         </Box>
@@ -171,6 +196,23 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
           {mealPlan.closingText}
         </Typography>
       )}
+
+      {/* Snackbar for feedback */}
+      <Snackbar
+        open={!!snackbarMessage}
+        autoHideDuration={2000}
+        onClose={() => setSnackbarMessage(null)}
+        message={snackbarMessage}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        sx={{
+          '& .MuiSnackbarContent-root': {
+            bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '12px',
+            fontWeight: 600,
+          }
+        }}
+      />
     </Box>
   );
 };

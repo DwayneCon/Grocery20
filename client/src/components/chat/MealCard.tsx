@@ -1,8 +1,8 @@
 /* client/src/components/chat/MealCard.tsx */
 import { useState } from 'react';
 import { Box, Typography, Chip, Collapse, IconButton, Divider } from '@mui/material';
-import { ExpandMore, Timer, AttachMoney, Restaurant, LocalDining, TipsAndUpdates, Storage } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import { ExpandMore, Timer, AttachMoney, Restaurant, LocalDining, TipsAndUpdates, Storage, CheckCircle, Cancel } from '@mui/icons-material';
+import { motion, PanInfo, useMotionValue, useTransform } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import { ParsedMeal } from '../../utils/mealParser';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -10,34 +10,135 @@ import { useTheme } from '../../contexts/ThemeContext';
 interface MealCardProps {
   meal: ParsedMeal;
   index: number;
+  onAccept?: (meal: ParsedMeal) => void;
+  onReject?: (meal: ParsedMeal) => void;
 }
 
-const MealCard = ({ meal, index }: MealCardProps) => {
+const MealCard = ({ meal, index, onAccept, onReject }: MealCardProps) => {
   const [expanded, setExpanded] = useState(false);
+  const [swiped, setSwiped] = useState(false);
   const { mode } = useTheme();
 
+  // Motion values for swipe
+  const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 0, 200], [-20, 0, 20]);
+  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
+
+  // Indicator opacity
+  const acceptOpacity = useTransform(x, [0, 100], [0, 1]);
+  const rejectOpacity = useTransform(x, [-100, 0], [1, 0]);
+
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const threshold = 150;
+
+    if (info.offset.x > threshold) {
+      // Swiped right - Accept
+      setSwiped(true);
+      if (onAccept) {
+        setTimeout(() => onAccept(meal), 300);
+      }
+    } else if (info.offset.x < -threshold) {
+      // Swiped left - Reject
+      setSwiped(true);
+      if (onReject) {
+        setTimeout(() => onReject(meal), 300);
+      }
+    } else {
+      // Snap back
+      x.set(0);
+    }
+  };
+
+  if (swiped) {
+    return null;
+  }
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
-    >
-      <GlassCard
-        intensity="medium"
-        hover={false}
-        sx={{
-          mb: 2,
-          cursor: 'pointer',
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: mode === 'dark'
-              ? '0 12px 40px rgba(78, 205, 196, 0.2)'
-              : '0 12px 40px rgba(0, 0, 0, 0.15)',
-          },
+    <Box sx={{ position: 'relative', mb: 2 }}>
+      {/* Accept Indicator - Right side */}
+      <motion.div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          right: 20,
+          transform: 'translateY(-50%)',
+          opacity: acceptOpacity,
+          zIndex: 0,
+          pointerEvents: 'none',
         }}
-        onClick={() => setExpanded(!expanded)}
       >
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          bgcolor: 'rgba(76, 175, 80, 0.2)',
+          color: '#4CAF50',
+          px: 2,
+          py: 1,
+          borderRadius: '12px',
+          border: '2px solid #4CAF50',
+        }}>
+          <CheckCircle sx={{ fontSize: '2rem' }} />
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            YES
+          </Typography>
+        </Box>
+      </motion.div>
+
+      {/* Reject Indicator - Left side */}
+      <motion.div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: 20,
+          transform: 'translateY(-50%)',
+          opacity: rejectOpacity,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      >
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          bgcolor: 'rgba(244, 67, 54, 0.2)',
+          color: '#F44336',
+          px: 2,
+          py: 1,
+          borderRadius: '12px',
+          border: '2px solid #F44336',
+        }}>
+          <Cancel sx={{ fontSize: '2rem' }} />
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            NO
+          </Typography>
+        </Box>
+      </motion.div>
+
+      {/* Swipeable Card */}
+      <motion.div
+        style={{ x, rotate, opacity }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.7}
+        onDragEnd={handleDragEnd}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
+        transition={{ delay: index * 0.1 }}
+      >
+        <GlassCard
+          intensity="medium"
+          hover={false}
+          sx={{
+            cursor: 'grab',
+            touchAction: 'none',
+            userSelect: 'none',
+            '&:active': {
+              cursor: 'grabbing',
+            },
+          }}
+        >
         {/* Header Section - Always Visible */}
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
           {/* Emoji */}
@@ -169,10 +270,27 @@ const MealCard = ({ meal, index }: MealCardProps) => {
               e.stopPropagation();
               setExpanded(!expanded);
             }}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <ExpandMore />
           </IconButton>
         </Box>
+
+        {/* Swipe Hint */}
+        {!expanded && (
+          <Box sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 2,
+            mt: 1,
+            opacity: 0.5,
+          }}>
+            <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>
+              ← Swipe to decide →
+            </Typography>
+          </Box>
+        )}
 
         {/* Expanded Content */}
         <Collapse in={expanded} timeout="auto" unmountOnExit>
@@ -298,8 +416,9 @@ const MealCard = ({ meal, index }: MealCardProps) => {
             </Box>
           )}
         </Collapse>
-      </GlassCard>
-    </motion.div>
+        </GlassCard>
+      </motion.div>
+    </Box>
   );
 };
 
