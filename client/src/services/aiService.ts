@@ -24,7 +24,8 @@ export interface ConversationMessage {
 // Chat request/response interfaces
 export interface ChatRequest {
   message: string;
-  conversationHistory?: ConversationMessage[];
+  householdId?: string;
+  useHistory?: boolean;
 }
 
 export interface ChatResponse {

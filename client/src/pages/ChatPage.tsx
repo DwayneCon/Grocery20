@@ -3,14 +3,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar, Tooltip } from '@mui/material';
 import { Send, SmartToy, Person, Mic, MicOff } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSelector } from 'react-redux';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import { sanitizeAIContent, sanitizeInput } from '../utils/sanitize';
-import { aiService, ConversationMessage } from '../services/aiService';
+import { aiService } from '../services/aiService';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import QuickActionChips from '../components/chat/QuickActionChips';
 import MessageReactions from '../components/chat/MessageReactions';
 import { useTheme } from '../contexts/ThemeContext';
+import { RootState } from '../app/store';
 
 interface Message {
   id: string;
@@ -21,6 +23,9 @@ interface Message {
 
 const ChatPage = () => {
   const { mode } = useTheme();
+  const user = useSelector((state: RootState) => state.auth.user);
+  const householdId = user?.householdId;
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -84,18 +89,11 @@ const ChatPage = () => {
     resetTranscript();
 
     try {
-      // Build conversation history for context
-      const conversationHistory: ConversationMessage[] = messages
-        .filter(msg => msg.id !== '1') // Exclude initial greeting
-        .map(msg => ({
-          role: msg.sender === 'user' ? 'user' : 'assistant',
-          content: msg.text
-        }));
-
-      // Call AI chat endpoint
+      // Call AI chat endpoint with householdId
       const response = await aiService.chat({
         message: sanitizedInput,
-        conversationHistory
+        householdId,
+        useHistory: true
       });
 
       setIsTyping(false);
