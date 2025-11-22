@@ -258,28 +258,37 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
             role: 'user' as const,
             content: `${message}
 
-IMPORTANT FORMATTING: For each meal, you MUST use this exact structure:
+CRITICAL FORMATTING RULES - Follow EXACTLY:
 
-🍽️ **[Meal Name]**
-⏱️ Prep: [time] | Cook: [time]
-💰 Cost per serving: ~$[amount]
-✨ Why this works: [brief reason]
+For EACH individual meal recipe, use this EXACT structure (all sections in ONE block):
+
+🍽️ **Grilled Chicken Salad**
+⏱️ Prep: 10 min | Cook: 15 min
+💰 Cost per serving: ~$3.50
+✨ Why this works: High protein, fresh vegetables, quick to make
 
 **Ingredients:**
-- [ingredient 1]
-- [ingredient 2]
-...
+- 1 lb chicken breast
+- 2 cups mixed greens
+- 1/2 cup cherry tomatoes
 
 **Instructions:**
-1. [Step 1]
-2. [Step 2]
-...
+1. Season and grill chicken for 6-8 minutes per side
+2. Slice chicken and arrange over greens
+3. Add tomatoes and dressing
 
 **Pro Tips:**
-- [tip 1]
-- [tip 2]
+- Marinate chicken for 30 minutes for extra flavor
+- Use pre-cooked chicken to save time
 
-Group meals by type (Breakfast, Lunch, Dinner) with headers. Be concise but include all sections.`
+---
+
+IMPORTANT:
+- Start EVERY meal with an emoji (🍽️, 🥘, 🍲, etc.) + bold meal name
+- Include ALL sections (Ingredients, Instructions, Tips) in ONE continuous block
+- Use "---" or blank line to separate different meals
+- Group meals under these EXACT headers: "**Breakfast**", "**Lunch**", "**Dinner**"
+- Do NOT create separate cards for each section - keep them together!`
           }
         ]
       : messages;

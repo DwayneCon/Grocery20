@@ -68,15 +68,14 @@ export function parseMealPlan(text: string): ParsedMealPlan {
     const recipeHeaderMatch = line.match(/^#{1,3}\s+(.+)$/);
 
     // Check if this is a section header (not a meal name)
-    const isSectionHeader = /^(Ingredients|Instructions|Pro Tips?|Storage|Nutrition):/i.test(line);
+    const isSectionHeader = /^(\*\*)?(Ingredients|Instructions|Pro Tips?|Storage|Nutrition)(\*\*)?:/i.test(line);
     const isCategoryHeader = /^\*\*(Breakfast|Lunch|Dinner|Snack)\*\*$/i.test(line);
 
-    // Check if this looks like a meal name (has emoji or is bold, but NOT a section/category header)
-    const possibleMealName = !isSectionHeader && !isCategoryHeader && (
-      line.match(/^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳]+)\s+(.+)$/) ||
-      line.match(/^\*\*(.+)\*\*$/) ||
-      recipeHeaderMatch
-    );
+    // STRICT: Only treat as meal name if it has an EMOJI at the start
+    // This prevents section headers like "**Ingredients:**" from being treated as meals
+    const emojiMealMatch = line.match(/^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳🥓🍗🍖🥩🍤🦐🦞🦀🐟🥚🧀🥐🥖🥨🥯🥞🧇🥓🍳]+)\s+(.+)$/);
+
+    const possibleMealName = emojiMealMatch;
 
     // Handle meal type headers (like "Breakfast:" or "Lunch:" or "**Breakfast**")
     if (mealTypeHeaderMatch || isCategoryHeader) {
@@ -97,7 +96,7 @@ export function parseMealPlan(text: string): ParsedMealPlan {
       inMealBlock = true;
       currentSection = null;
 
-      // Extract meal name
+      // Extract meal name from emoji match
       let mealName = '';
       let emoji = '';
       let dayName = '';
@@ -109,13 +108,12 @@ export function parseMealPlan(text: string): ParsedMealPlan {
         continue;
       }
 
-      if (possibleMealName) {
-        if (possibleMealName[2]) {
-          emoji = possibleMealName[1];
-          mealName = possibleMealName[2];
-        } else if (possibleMealName[1]) {
-          mealName = possibleMealName[1];
-        }
+      if (emojiMealMatch) {
+        emoji = emojiMealMatch[1];
+        mealName = emojiMealMatch[2].replace(/^\*\*|\*\*$/g, ''); // Remove bold markers if present
+      } else {
+        // No emoji found, skip this line
+        continue;
       }
 
       // Look ahead to next line to determine meal type from context
