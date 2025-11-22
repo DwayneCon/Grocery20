@@ -214,33 +214,40 @@ const ChatPage = () => {
                       {message.sender === 'user' ? <Person /> : <SmartToy sx={{ color: '#4ECDC4' }} />}
                     </Avatar>
 
-                    <Box>
-                      <GlassCard
-                        intensity={message.sender === 'user' ? 'ultra' : 'ultra'}
-                        sx={{
-                          p: 2.5,
-                          borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
-                          background: message.sender === 'user'
-                            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                            : mode === 'dark'
-                            ? 'rgba(255, 255, 255, 0.1)'
-                            : 'rgba(0, 0, 0, 0.1)',
-                          boxShadow: message.sender === 'user'
-                            ? '0 8px 32px rgba(102, 126, 234, 0.3)'
-                            : 'none'
-                        }}
-                      >
-                        {message.sender === 'ai' && message.isMealPlan ? (
-                          <MealPlanDisplay mealPlan={parseMealPlan(message.text)} />
-                        ) : (
+                    <Box sx={{ width: '100%' }}>
+                      {/* Chat Bubble - Only for non-meal-plan messages or intro text */}
+                      {!(message.sender === 'ai' && message.isMealPlan) && (
+                        <GlassCard
+                          intensity={message.sender === 'user' ? 'ultra' : 'ultra'}
+                          sx={{
+                            p: 2.5,
+                            borderRadius: message.sender === 'user' ? '24px 24px 4px 24px' : '24px 24px 24px 4px',
+                            background: message.sender === 'user'
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                              : mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.1)'
+                              : 'rgba(0, 0, 0, 0.1)',
+                            boxShadow: message.sender === 'user'
+                              ? '0 8px 32px rgba(102, 126, 234, 0.3)'
+                              : 'none',
+                            mb: 2
+                          }}
+                        >
                           <Typography variant="body1" sx={{ color: message.sender === 'user' ? 'white' : mode === 'dark' ? 'white' : '#000000', lineHeight: 1.6 }}>
                             {message.text}
                           </Typography>
-                        )}
-                      </GlassCard>
+                        </GlassCard>
+                      )}
+
+                      {/* Meal Plan Display - Rendered OUTSIDE chat bubble */}
+                      {message.sender === 'ai' && message.isMealPlan && (
+                        <Box sx={{ width: '100%', mt: 2 }}>
+                          <MealPlanDisplay mealPlan={parseMealPlan(message.text)} />
+                        </Box>
+                      )}
 
                       {/* Message Reactions - Only for AI messages */}
-                      {message.sender === 'ai' && message.id !== '1' && (
+                      {message.sender === 'ai' && message.id !== '1' && !message.isMealPlan && (
                         <MessageReactions
                           messageId={message.id}
                           messageText={message.text}

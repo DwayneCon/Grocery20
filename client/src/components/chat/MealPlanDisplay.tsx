@@ -111,16 +111,33 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
           />
         </Box>
 
-        {/* Meal Cards in this category */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Meal Cards stacked like playing cards */}
+        <Box sx={{ position: 'relative', minHeight: 200, mb: meals.length > 1 ? `${(meals.length - 1) * 20}px` : 0 }}>
           {meals.map((meal, idx) => (
-            <MealCard
+            <Box
               key={startIndex + idx}
-              meal={meal}
-              index={startIndex + idx}
-              onAccept={handleAccept}
-              onReject={handleReject}
-            />
+              sx={{
+                position: idx === 0 ? 'relative' : 'absolute',
+                top: idx === 0 ? 0 : `${idx * 20}px`,
+                left: 0,
+                right: 0,
+                zIndex: meals.length - idx,
+                transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(${1 - (idx * 0.02)})`,
+                transformOrigin: 'top center',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(1)`,
+                  zIndex: meals.length + 10,
+                }
+              }}
+            >
+              <MealCard
+                meal={meal}
+                index={startIndex + idx}
+                onAccept={handleAccept}
+                onReject={handleReject}
+              />
+            </Box>
           ))}
         </Box>
       </Box>
@@ -167,17 +184,34 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
       {renderMealCategory('Lunch', <LunchDining />, lunch, '#4CAF50', breakfast.length)}
       {renderMealCategory('Dinner', <DinnerDining />, dinner, '#9C27B0', breakfast.length + lunch.length)}
 
-      {/* Other meals without specific type */}
+      {/* Other meals without specific type - also stacked */}
       {other.length > 0 && (
-        <Box sx={{ mb: 2 }}>
+        <Box sx={{ position: 'relative', minHeight: 200, mb: other.length > 1 ? `${(other.length - 1) * 20}px` : 2 }}>
           {other.map((meal, idx) => (
-            <MealCard
+            <Box
               key={breakfast.length + lunch.length + dinner.length + idx}
-              meal={meal}
-              index={breakfast.length + lunch.length + dinner.length + idx}
-              onAccept={handleAccept}
-              onReject={handleReject}
-            />
+              sx={{
+                position: idx === 0 ? 'relative' : 'absolute',
+                top: idx === 0 ? 0 : `${idx * 20}px`,
+                left: 0,
+                right: 0,
+                zIndex: other.length - idx,
+                transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(${1 - (idx * 0.02)})`,
+                transformOrigin: 'top center',
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(1)`,
+                  zIndex: other.length + 10,
+                }
+              }}
+            >
+              <MealCard
+                meal={meal}
+                index={breakfast.length + lunch.length + dinner.length + idx}
+                onAccept={handleAccept}
+                onReject={handleReject}
+              />
+            </Box>
           ))}
         </Box>
       )}
