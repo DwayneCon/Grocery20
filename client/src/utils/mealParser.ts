@@ -67,17 +67,22 @@ export function parseMealPlan(text: string): ParsedMealPlan {
     // Pattern 3: "## Recipe Name" or "# Recipe Name"
     const recipeHeaderMatch = line.match(/^#{1,3}\s+(.+)$/);
 
-    // Check if this looks like a meal name (has emoji or is bold)
-    const possibleMealName = line.match(/^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳]+)\s+(.+)$/) ||
-                            line.match(/^\*\*(.+)\*\*$/) ||
-                            recipeHeaderMatch;
+    // Check if this is a section header (not a meal name)
+    const isSectionHeader = /^(Ingredients|Instructions|Pro Tips?|Storage|Nutrition):/i.test(line);
+    const isCategoryHeader = /^\*\*(Breakfast|Lunch|Dinner|Snack)\*\*$/i.test(line);
 
-    // Handle meal type headers (like "Breakfast:" or "Lunch:")
-    if (mealTypeHeaderMatch) {
+    // Check if this looks like a meal name (has emoji or is bold, but NOT a section/category header)
+    const possibleMealName = !isSectionHeader && !isCategoryHeader && (
+      line.match(/^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳]+)\s+(.+)$/) ||
+      line.match(/^\*\*(.+)\*\*$/) ||
+      recipeHeaderMatch
+    );
+
+    // Handle meal type headers (like "Breakfast:" or "Lunch:" or "**Breakfast**")
+    if (mealTypeHeaderMatch || isCategoryHeader) {
       // This is just a category header, not a meal itself
-      // Store the meal type for the next meal we find
-      const nextMealType = mealTypeHeaderMatch[1];
-      // Skip this line but remember the type
+      const nextMealType = mealTypeHeaderMatch ? mealTypeHeaderMatch[1] : line.match(/^\*\*(Breakfast|Lunch|Dinner|Snack)\*\*$/i)?.[1];
+      // Store for next meal and skip this line
       continue;
     }
 
@@ -184,28 +189,30 @@ export function parseMealPlan(text: string): ParsedMealPlan {
         continue;
       }
 
-      // Section headers
-      if (line.match(/^#{2,3}\s*Ingredients/i) || line.match(/^Ingredients:?/i) || line === '**Ingredients:**') {
+      // Section headers (more flexible matching)
+      if (line.match(/^(#{2,3}\s*)?(\*\*)?Ingredients(\*\*)?:?/i)) {
         currentSection = 'ingredients';
         currentMeal.ingredients = [];
         continue;
       }
 
-      if (line.match(/^#{2,3}\s*Instructions/i) || line.match(/^Instructions:?/i) || line === '**Instructions:**') {
+      if (line.match(/^(#{2,3}\s*)?(\*\*)?Instructions(\*\*)?:?/i)) {
         currentSection = 'instructions';
         currentMeal.instructions = [];
         continue;
       }
 
-      if (line.match(/^💡\s*Pro Tips?:?/i) || line.match(/^Tips?:?/i) || line === '**Pro Tips:**') {
+      if (line.match(/^(💡\s*)?(\*\*)?Pro Tips?(\*\*)?:?/i) || line.match(/^Tips?:?/i)) {
         currentSection = 'tips';
         currentMeal.proTips = [];
         continue;
       }
 
-      if (line.match(/^📦\s*Storage:?/i) || line === '**Storage:**') {
-        const storageContent = line.replace(/^📦\s*Storage:?\s*/i, '').replace(/^\*\*Storage:\*\*\s*/, '');
-        currentMeal.storage = storageContent;
+      if (line.match(/^(📦\s*)?(\*\*)?Storage(\*\*)?:?/i)) {
+        const storageContent = line.replace(/^(📦\s*)?(\*\*)?Storage(\*\*)?:?\s*/i, '');
+        if (storageContent) {
+          currentMeal.storage = storageContent;
+        }
         continue;
       }
 
