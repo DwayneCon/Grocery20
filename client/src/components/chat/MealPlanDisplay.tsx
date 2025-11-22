@@ -58,88 +58,111 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
 
   const { breakfast, lunch, dinner, other } = groupMealsByType(mealPlan.meals);
 
-  const renderMealCategory = (
+  const renderMealCategoryColumn = (
     title: string,
     icon: React.ReactNode,
     meals: ParsedMeal[],
     color: string,
     startIndex: number
   ) => {
-    if (meals.length === 0) return null;
-
     return (
-      <Box sx={{ mb: 4 }}>
-        {/* Category Header */}
+      <Box sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0, // Allow flex item to shrink
+      }}>
+        {/* Fixed Category Header - NOT swipeable */}
         <Box sx={{
           display: 'flex',
           alignItems: 'center',
           gap: 1.5,
-          mb: 2,
-          pb: 1,
-          borderBottom: `2px solid ${color}20`
+          mb: 3,
+          pb: 2,
+          borderBottom: `3px solid ${color}`,
+          position: 'sticky',
+          top: 0,
+          bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)',
+          backdropFilter: 'blur(10px)',
+          zIndex: 100,
+          borderRadius: '12px',
+          px: 2,
+          py: 1.5,
         }}>
           <Box sx={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 40,
-            height: 40,
-            borderRadius: '12px',
-            bgcolor: `${color}20`,
-            color: color
+            width: 48,
+            height: 48,
+            borderRadius: '14px',
+            bgcolor: `${color}`,
+            color: '#fff',
+            boxShadow: `0 4px 12px ${color}40`,
           }}>
             {icon}
           </Box>
-          <Typography
-            variant="h5"
-            sx={{
-              fontWeight: 700,
-              color: mode === 'dark' ? '#fff' : '#000',
-              flex: 1
-            }}
-          >
-            {title}
-          </Typography>
-          <Chip
-            label={`${meals.length} ${meals.length === 1 ? 'meal' : 'meals'}`}
-            size="small"
-            sx={{
-              bgcolor: `${color}20`,
-              color: color,
-              fontWeight: 600
-            }}
-          />
-        </Box>
-
-        {/* Meal Cards stacked like playing cards */}
-        <Box sx={{ position: 'relative', minHeight: 200, mb: meals.length > 1 ? `${(meals.length - 1) * 20}px` : 0 }}>
-          {meals.map((meal, idx) => (
-            <Box
-              key={startIndex + idx}
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="h5"
               sx={{
-                position: idx === 0 ? 'relative' : 'absolute',
-                top: idx === 0 ? 0 : `${idx * 20}px`,
-                left: 0,
-                right: 0,
-                zIndex: meals.length - idx,
-                transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(${1 - (idx * 0.02)})`,
-                transformOrigin: 'top center',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: idx === 0 ? 'none' : `translateY(${idx * 4}px) scale(1)`,
-                  zIndex: meals.length + 10,
-                }
+                fontWeight: 800,
+                color: mode === 'dark' ? '#fff' : '#000',
+                letterSpacing: '-0.5px',
               }}
             >
-              <MealCard
-                meal={meal}
-                index={startIndex + idx}
-                onAccept={handleAccept}
-                onReject={handleReject}
-              />
-            </Box>
-          ))}
+              {title}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                fontWeight: 600,
+              }}
+            >
+              {meals.length} {meals.length === 1 ? 'option' : 'options'}
+            </Typography>
+          </Box>
         </Box>
+
+        {/* Meal Cards stacked in this column */}
+        {meals.length > 0 ? (
+          <Box sx={{ position: 'relative', minHeight: 250, mb: meals.length > 1 ? `${(meals.length - 1) * 15}px` : 0 }}>
+            {meals.map((meal, idx) => (
+              <Box
+                key={startIndex + idx}
+                sx={{
+                  position: idx === 0 ? 'relative' : 'absolute',
+                  top: idx === 0 ? 0 : `${idx * 15}px`,
+                  left: 0,
+                  right: 0,
+                  zIndex: meals.length - idx,
+                  transform: idx === 0 ? 'none' : `translateY(${idx * 3}px) scale(${1 - (idx * 0.015)})`,
+                  transformOrigin: 'top center',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  '&:hover': {
+                    transform: 'translateY(0) scale(1)',
+                    zIndex: meals.length + 10,
+                  }
+                }}
+              >
+                <MealCard
+                  meal={meal}
+                  index={startIndex + idx}
+                  onAccept={handleAccept}
+                  onReject={handleReject}
+                />
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          <Box sx={{
+            p: 4,
+            textAlign: 'center',
+            color: mode === 'dark' ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.4)',
+          }}>
+            <Typography variant="body2">No meals in this category</Typography>
+          </Box>
+        )}
       </Box>
     );
   };
@@ -179,10 +202,22 @@ const MealPlanDisplay = ({ mealPlan }: MealPlanDisplayProps) => {
         </Alert>
       )}
 
-      {/* Meal Categories */}
-      {renderMealCategory('Breakfast', <FreeBreakfast />, breakfast, '#FF9800', 0)}
-      {renderMealCategory('Lunch', <LunchDining />, lunch, '#4CAF50', breakfast.length)}
-      {renderMealCategory('Dinner', <DinnerDining />, dinner, '#9C27B0', breakfast.length + lunch.length)}
+      {/* 3-Column Grid Layout */}
+      <Box sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+        gap: 3,
+        mb: 4,
+      }}>
+        {/* Breakfast Column */}
+        {renderMealCategoryColumn('Breakfast', <FreeBreakfast />, breakfast, '#FF9800', 0)}
+
+        {/* Lunch Column */}
+        {renderMealCategoryColumn('Lunch', <LunchDining />, lunch, '#4CAF50', breakfast.length)}
+
+        {/* Dinner Column */}
+        {renderMealCategoryColumn('Dinner', <DinnerDining />, dinner, '#9C27B0', breakfast.length + lunch.length)}
+      </Box>
 
       {/* Other meals without specific type - also stacked */}
       {other.length > 0 && (
