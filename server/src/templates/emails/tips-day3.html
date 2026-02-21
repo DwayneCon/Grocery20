@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tips & Tricks - Grocery20</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #8b5cf6;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .content p {
+            line-height: 1.6;
+            color: #cbd5e1;
+            font-size: 16px;
+        }
+        .tip {
+            background-color: #334155;
+            border-left: 4px solid #8b5cf6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .tip h3 {
+            color: #8b5cf6;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .tip-number {
+            display: inline-block;
+            background-color: #8b5cf6;
+            color: #ffffff;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #8b5cf6;
+            color: #ffffff;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #0f172a;
+            padding: 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #8b5cf6;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💡 Pro Tips to Master Grocery20</h1>
+        </div>
+
+        <div class="content">
+            <h2>Hi {{userName}},</h2>
+
+            <p>You've been using Grocery20 for a few days now! Here are some expert tips to help you get even more value from your meal planning:</p>
+
+            <div class="tip">
+                <h3><span class="tip-number">1</span> Use Voice Input</h3>
+                <p>Tap the microphone icon in the chat to speak your meal preferences naturally. Nora understands conversational requests like "I need 5 dinners under $50 with no seafood."</p>
+            </div>
+
+            <div class="tip">
+                <h3><span class="tip-number">2</span> Build Your Streak</h3>
+                <p>Plan meals daily to build your streak and unlock achievements. The longer your streak, the better Nora understands your preferences!</p>
+            </div>
+
+            <div class="tip">
+                <h3><span class="tip-number">3</span> Customize Meals</h3>
+                <p>Click any meal card to swap ingredients, adjust serving sizes, or save variations. Your modifications help Nora learn your taste.</p>
+            </div>
+
+            <div class="tip">
+                <h3><span class="tip-number">4</span> Track Your Budget</h3>
+                <p>Set a weekly budget in the Budget page. Nora will automatically suggest meals that keep you on track while maximizing variety.</p>
+            </div>
+
+            <div class="tip">
+                <h3><span class="tip-number">5</span> Share Shopping Lists</h3>
+                <p>Export your shopping list via email or text. Perfect for sharing with family members who help with grocery shopping!</p>
+            </div>
+
+            <div class="tip">
+                <h3><span class="tip-number">6</span> Rate Your Meals</h3>
+                <p>After cooking, rate meals with 👍 or 👎. This trains Nora to suggest more of what you love and avoid what you don't.</p>
+            </div>
+
+            <center>
+                <a href="{{appUrl}}/chat" class="cta-button">Try These Tips Now ✨</a>
+            </center>
+
+            <p style="margin-top: 30px; background-color: #334155; padding: 20px; border-radius: 8px;">
+                <strong>🎯 Quick Win:</strong> Try asking Nora: "Plan my meals for the week with ingredients I already have." You'll save money by using what's in your pantry first!
+            </p>
+
+            <p>Questions? Reply to this email - we read every message!</p>
+
+            <p>Cheers,<br>
+            <strong>The Grocery20 Team</strong></p>
+        </div>
+
+        <div class="footer">
+            <p>You're receiving this email because you signed up for Grocery20.</p>
+            <p><a href="{{appUrl}}/settings">Manage preferences</a> | <a href="{{appUrl}}/unsubscribe">Unsubscribe</a></p>
+            <p>&copy; 2025 Grocery20. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

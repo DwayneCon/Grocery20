@@ -1,0 +1,198 @@
+/* ========================================
+   GROCERY20 DESIGN SYSTEM - CSS VARIABLES
+   Version 2.0 - Transformation Edition
+   ======================================== */
+
+:root {
+  /* ===== COLOR PALETTE ===== */
+
+  /* Primary Brand Colors */
+  --chef-orange: #FF6B35;
+  --basil-green: #05AF5C;
+  --honey-gold: #F4A460;
+  --plum-wine: #6A4C93;
+  --citrus-yellow: #FFD93D;
+
+  /* Neutral Scale - Dark Mode */
+  --midnight-kitchen: #1A1D2E;
+  --charcoal: #2B2D42;
+  --slate: #3D405B;
+  --steel: #52546A;
+
+  /* Neutral Scale - Light Mode */
+  --cream: #F8F9FA;
+  --marble: #E9ECEF;
+  --fog: #DEE2E6;
+  --smoke: #ADB5BD;
+
+  /* Universal */
+  --pure-white: #FFFFFF;
+  --true-black: #000000;
+
+  /* Text Colors */
+  --text-primary-dark: rgba(255,255,255,0.95);
+  --text-secondary-dark: rgba(255,255,255,0.65);
+  --text-tertiary-dark: rgba(255,255,255,0.45);
+  --text-primary-light: rgba(0,0,0,0.87);
+  --text-secondary-light: rgba(0,0,0,0.60);
+  --text-tertiary-light: rgba(0,0,0,0.38);
+
+  /* Semantic Colors */
+  --success: #4CAF50;
+  --success-light: #81C784;
+  --success-bg: rgba(76,175,80,0.1);
+
+  --warning: #FF9800;
+  --warning-light: #FFB74D;
+  --warning-bg: rgba(255,152,0,0.1);
+
+  --error: #F44336;
+  --error-light: #E57373;
+  --error-bg: rgba(244,67,54,0.1);
+
+  --info: #2196F3;
+  --info-light: #64B5F6;
+  --info-bg: rgba(33,150,243,0.1);
+
+  /* ===== TYPOGRAPHY ===== */
+
+  /* Font Families */
+  --font-display: 'Clash Display', 'SF Pro Display', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, 'SF Pro Text', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Consolas', monospace;
+
+  /* Font Sizes (Responsive via clamp) */
+  --text-display-xs: clamp(2.5rem, 5vw, 4rem);
+  --text-display-sm: clamp(3rem, 6vw, 5rem);
+  --text-display-md: clamp(3.5rem, 7vw, 6rem);
+  --text-display-lg: clamp(4rem, 8vw, 7.5rem);
+
+  --text-h1: clamp(2rem, 4vw, 3rem);
+  --text-h2: clamp(1.75rem, 3.5vw, 2.5rem);
+  --text-h3: clamp(1.5rem, 3vw, 2rem);
+  --text-h4: clamp(1.25rem, 2.5vw, 1.75rem);
+  --text-h5: clamp(1.125rem, 2vw, 1.5rem);
+  --text-h6: clamp(1rem, 1.5vw, 1.25rem);
+
+  --text-lg: 1.125rem;   /* 18px */
+  --text-base: 1rem;     /* 16px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-xs: 0.75rem;    /* 12px */
+
+  /* Line Heights */
+  --leading-tight: 1.1;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.75;
+
+  /* Font Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+  --weight-black: 900;
+
+  /* ===== SPACING ===== */
+
+  --space-1: 0.5rem;   /* 8px */
+  --space-2: 1rem;     /* 16px */
+  --space-3: 1.5rem;   /* 24px */
+  --space-4: 2rem;     /* 32px */
+  --space-5: 2.5rem;   /* 40px */
+  --space-6: 3rem;     /* 48px */
+  --space-8: 4rem;     /* 64px */
+  --space-10: 5rem;    /* 80px */
+  --space-12: 6rem;    /* 96px */
+  --space-16: 8rem;    /* 128px */
+  --space-20: 10rem;   /* 160px */
+
+  /* ===== BORDER RADIUS ===== */
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* ===== SHADOWS ===== */
+
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  --shadow-elevated: 0 16px 40px rgba(255, 107, 53, 0.3);
+  --shadow-elevated-hover: 0 24px 56px rgba(255, 107, 53, 0.4);
+
+  /* ===== TRANSITIONS ===== */
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --ease-organic: cubic-bezier(0.4, 0.0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.23, 1, 0.320, 1);
+  --ease-energetic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* ===== Z-INDEX SCALE ===== */
+
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+
+  /* ===== CONTAINER WIDTHS ===== */
+
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+
+  /* ===== GRADIENTS ===== */
+
+  --gradient-hero: linear-gradient(135deg, #FF6B35 0%, #F4A460 100%);
+  --gradient-sweet: linear-gradient(135deg, #FFD93D 0%, #F4A460 50%, #FF6B35 100%);
+  --gradient-savory: linear-gradient(135deg, #6A4C93 0%, #05AF5C 50%, #FF6B35 100%);
+  --gradient-fresh: linear-gradient(135deg, #05AF5C 0%, #FFD93D 100%);
+  --gradient-umami: linear-gradient(135deg, #2B2D42 0%, #6A4C93 50%, #FF6B35 100%);
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: var(--midnight-kitchen);
+    --bg-secondary: var(--charcoal);
+    --bg-tertiary: var(--slate);
+
+    --text-primary: var(--text-primary-dark);
+    --text-secondary: var(--text-secondary-dark);
+    --text-tertiary: var(--text-tertiary-dark);
+
+    --border-color: rgba(255,255,255,0.12);
+    --divider-color: rgba(255,255,255,0.08);
+  }
+}
+
+/* Light Mode */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-primary: var(--pure-white);
+    --bg-secondary: var(--cream);
+    --bg-tertiary: var(--marble);
+
+    --text-primary: var(--text-primary-light);
+    --text-secondary: var(--text-secondary-light);
+    --text-tertiary: var(--text-tertiary-light);
+
+    --border-color: rgba(0,0,0,0.12);
+    --divider-color: rgba(0,0,0,0.06);
+  }
+}

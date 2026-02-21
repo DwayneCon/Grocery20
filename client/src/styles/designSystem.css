@@ -1,0 +1,476 @@
+/* ========================================
+   GROCERY20 DESIGN SYSTEM - ZERO THINKING UI
+   "Culinary Warmth Palette" Edition
+   ======================================== */
+
+:root {
+  /* ===== CORE BRAND COLORS ===== */
+  --primary: #FF6B35;           /* Sunset orange - Primary CTA */
+  --secondary: #2EC4B6;         /* Teal green - Secondary actions */
+  --accent: #FFD166;            /* Golden honey - Highlights */
+
+  /* Extended Palette */
+  --chef-orange: #FF6B35;
+  --basil-green: #05AF5C;
+  --honey-gold: #F4A460;
+  --plum-wine: #6A4C93;
+  --citrus-yellow: #FFD93D;
+  --teal-fresh: #2EC4B6;
+
+  /* ===== BACKGROUND COLORS ===== */
+  --bg-primary: #FEFCFB;        /* Cream white - Main background */
+  --bg-secondary: #F8F9FA;      /* Light gray - Card backgrounds */
+  --bg-tertiary: #E9ECEF;       /* Medium gray - Subtle sections */
+
+  /* Dark mode backgrounds */
+  --bg-dark-primary: #1A1D2E;
+  --bg-dark-secondary: #2B2D42;
+  --bg-dark-tertiary: #3D405B;
+
+  /* ===== TEXT COLORS ===== */
+  --text-primary: #2D3436;      /* Almost black - Main text */
+  --text-secondary: #636E72;    /* Gray - Secondary text */
+  --text-tertiary: #B2BEC3;     /* Light gray - Disabled text */
+  --text-inverse: #FFFFFF;      /* White - Text on dark backgrounds */
+
+  /* Dark mode text */
+  --text-dark-primary: rgba(255,255,255,0.95);
+  --text-dark-secondary: rgba(255,255,255,0.65);
+  --text-dark-tertiary: rgba(255,255,255,0.45);
+
+  /* ===== SEMANTIC COLORS ===== */
+  --success: #4CAF50;
+  --success-light: #81C784;
+  --success-bg: rgba(76,175,80,0.1);
+
+  --warning: #FF9800;
+  --warning-light: #FFB74D;
+  --warning-bg: rgba(255,152,0,0.1);
+
+  --error: #F44336;
+  --error-light: #E57373;
+  --error-bg: rgba(244,67,54,0.1);
+
+  --info: #2196F3;
+  --info-light: #64B5F6;
+  --info-bg: rgba(33,150,243,0.1);
+
+  /* ===== TYPOGRAPHY - ROOM TO BREATHE ===== */
+
+  /* Font Families */
+  --font-display: 'Plus Jakarta Sans', 'SF Pro Display', system-ui, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* Font Sizes - Generous */
+  --text-display-xl: clamp(4rem, 8vw, 7.5rem);   /* 64-120px */
+  --text-display-lg: clamp(3.5rem, 7vw, 6rem);   /* 56-96px */
+  --text-display-md: clamp(3rem, 6vw, 5rem);     /* 48-80px */
+  --text-display-sm: clamp(2.5rem, 5vw, 4rem);   /* 40-64px */
+
+  --text-h1: clamp(2.5rem, 4vw, 3.5rem);         /* 40-56px */
+  --text-h2: clamp(2rem, 3.5vw, 3rem);           /* 32-48px */
+  --text-h3: clamp(1.75rem, 3vw, 2.5rem);        /* 28-40px */
+  --text-h4: clamp(1.5rem, 2.5vw, 2rem);         /* 24-32px */
+  --text-h5: clamp(1.25rem, 2vw, 1.75rem);       /* 20-28px */
+  --text-h6: clamp(1.125rem, 1.75vw, 1.5rem);    /* 18-24px */
+
+  --text-xl: 1.25rem;    /* 20px */
+  --text-lg: 1.125rem;   /* 18px */
+  --text-base: 1rem;     /* 16px */
+  --text-sm: 0.875rem;   /* 14px */
+  --text-xs: 0.75rem;    /* 12px */
+
+  /* Line Heights - Generous */
+  --leading-tight: 1.2;
+  --leading-snug: 1.4;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.8;
+  --leading-loose: 2.0;
+
+  /* Font Weights */
+  --weight-light: 300;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+  --weight-black: 900;
+
+  /* ===== SPACING - ROOM TO BREATHE ===== */
+
+  --space-0: 0;
+  --space-1: 0.25rem;    /* 4px */
+  --space-2: 0.5rem;     /* 8px */
+  --space-3: 0.75rem;    /* 12px */
+  --space-4: 1rem;       /* 16px - Base unit */
+  --space-5: 1.5rem;     /* 24px */
+  --space-6: 2rem;       /* 32px */
+  --space-7: 2.5rem;     /* 40px */
+  --space-8: 3rem;       /* 48px */
+  --space-10: 4rem;      /* 64px */
+  --space-12: 6rem;      /* 96px */
+  --space-16: 8rem;      /* 128px */
+  --space-20: 10rem;     /* 160px */
+  --space-24: 12rem;     /* 192px */
+
+  /* ===== BORDER RADIUS - EFFECTS ===== */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
+  --radius-full: 9999px;
+
+  /* ===== SHADOWS - DEPTH & ELEVATION ===== */
+
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.12);
+  --shadow-2xl: 0 24px 64px rgba(0, 0, 0, 0.15);
+
+  /* Colored shadows for depth */
+  --shadow-primary: 0 8px 32px rgba(255, 107, 53, 0.3);
+  --shadow-primary-lg: 0 16px 48px rgba(255, 107, 53, 0.4);
+  --shadow-success: 0 8px 32px rgba(76, 175, 80, 0.3);
+  --shadow-warning: 0 8px 32px rgba(255, 152, 0, 0.3);
+
+  /* Glass morphism */
+  --shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+
+  /* ===== TRANSITIONS - ORGANIC MOTION ===== */
+
+  --transition-instant: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-fast: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slower: 700ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Easing functions */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-elastic: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.23, 1, 0.320, 1);
+
+  /* ===== Z-INDEX SCALE ===== */
+
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1100;
+  --z-fixed: 1200;
+  --z-modal-backdrop: 1300;
+  --z-modal: 1400;
+  --z-popover: 1500;
+  --z-tooltip: 1600;
+  --z-notification: 1700;
+
+  /* ===== CONTAINER WIDTHS ===== */
+
+  --container-xs: 480px;
+  --container-sm: 640px;
+  --container-md: 768px;
+  --container-lg: 1024px;
+  --container-xl: 1280px;
+  --container-2xl: 1536px;
+  --container-full: 100%;
+
+  /* ===== GRADIENTS - CULINARY WARMTH ===== */
+
+  --gradient-primary: linear-gradient(135deg, #FF6B35 0%, #F4A460 100%);
+  --gradient-secondary: linear-gradient(135deg, #2EC4B6 0%, #05AF5C 100%);
+  --gradient-accent: linear-gradient(135deg, #FFD166 0%, #F4A460 100%);
+  --gradient-warm: linear-gradient(135deg, #FFD166 0%, #FF6B35 100%);
+  --gradient-fresh: linear-gradient(135deg, #05AF5C 0%, #2EC4B6 100%);
+  --gradient-sunset: linear-gradient(135deg, #FF6B35 0%, #6A4C93 100%);
+  --gradient-night: linear-gradient(135deg, #2B2D42 0%, #1A1D2E 100%);
+
+  /* Text gradients */
+  --gradient-text-warm: linear-gradient(135deg, #FF6B35 0%, #FFD166 100%);
+  --gradient-text-cool: linear-gradient(135deg, #2EC4B6 0%, #6A4C93 100%);
+
+  /* ===== BORDERS ===== */
+
+  --border-width-thin: 1px;
+  --border-width-normal: 2px;
+  --border-width-thick: 3px;
+
+  --border-color-light: rgba(0, 0, 0, 0.08);
+  --border-color-medium: rgba(0, 0, 0, 0.12);
+  --border-color-dark: rgba(0, 0, 0, 0.20);
+
+  --border-color-dark-light: rgba(255, 255, 255, 0.08);
+  --border-color-dark-medium: rgba(255, 255, 255, 0.12);
+  --border-color-dark-dark: rgba(255, 255, 255, 0.20);
+
+  /* ===== MICRO-INTERACTIONS ===== */
+
+  /* Button states */
+  --button-hover-lift: translateY(-2px);
+  --button-active-press: translateY(0px);
+  --button-hover-scale: scale(1.02);
+  --button-active-scale: scale(0.98);
+
+  /* Card states */
+  --card-hover-lift: translateY(-4px);
+  --card-hover-scale: scale(1.01);
+
+  /* Icon states */
+  --icon-hover-scale: scale(1.1);
+  --icon-hover-rotate: rotate(5deg);
+
+  /* ===== ACCESSIBILITY ===== */
+
+  /* Focus ring */
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
+  --focus-ring-color: var(--primary);
+
+  /* High contrast mode */
+  --high-contrast-border: 2px solid currentColor;
+
+  /* ===== ANIMATIONS ===== */
+
+  /* Pulse */
+  --pulse-animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+
+  /* Spin */
+  --spin-animation: spin 1s linear infinite;
+
+  /* Bounce */
+  --bounce-animation: bounce 1s infinite;
+
+  /* Fade in */
+  --fade-in-animation: fadeIn 0.3s ease-in;
+
+  /* Slide up */
+  --slide-up-animation: slideUp 0.4s ease-out;
+}
+
+/* ===== DARK MODE OVERRIDES ===== */
+
+[data-theme="dark"],
+.dark-mode {
+  --bg-primary: var(--bg-dark-primary);
+  --bg-secondary: var(--bg-dark-secondary);
+  --bg-tertiary: var(--bg-dark-tertiary);
+
+  --text-primary: var(--text-dark-primary);
+  --text-secondary: var(--text-dark-secondary);
+  --text-tertiary: var(--text-dark-tertiary);
+
+  --border-color-light: var(--border-color-dark-light);
+  --border-color-medium: var(--border-color-dark-medium);
+  --border-color-dark: var(--border-color-dark-dark);
+
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+/* ===== UTILITY CLASSES ===== */
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+/* Text gradients */
+.text-gradient-warm {
+  background: var(--gradient-text-warm);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-cool {
+  background: var(--gradient-text-cool);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Hover effects */
+.hover-lift {
+  transition: transform var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: var(--card-hover-lift);
+}
+
+.hover-scale {
+  transition: transform var(--transition-normal);
+}
+
+.hover-scale:hover {
+  transform: var(--card-hover-scale);
+}
+
+/* ===== KEYFRAME ANIMATIONS ===== */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(-25%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Celebration confetti */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(-100vh) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(720deg);
+    opacity: 0;
+  }
+}
+
+/* ===== RESPONSIVE BREAKPOINTS ===== */
+
+/* Mobile first approach */
+/* xs: 0-599px (default) */
+/* sm: 600px+ */
+/* md: 900px+ */
+/* lg: 1200px+ */
+/* xl: 1536px+ */
+
+/* ===== REDUCED MOTION ===== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .hover-lift:hover,
+  .hover-scale:hover {
+    transform: none !important;
+  }
+}
+
+/* ===== HIGH CONTRAST MODE ===== */
+
+@media (prefers-contrast: high) {
+  :root {
+    --border-width-normal: 3px;
+    --border-width-thick: 4px;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    border: var(--high-contrast-border);
+  }
+}
+
+/* ===== PRINT STYLES ===== */
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: transparent !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  a,
+  a:visited {
+    text-decoration: underline;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+  }
+
+  img {
+    page-break-inside: avoid;
+  }
+
+  h2,
+  h3,
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h2,
+  h3 {
+    page-break-after: avoid;
+  }
+}
