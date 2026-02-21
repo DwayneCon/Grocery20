@@ -9,6 +9,7 @@ import App from './App';
 import { store } from './features/store';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { logger } from './utils/logger';
+import { reportWebVitals } from './utils/webVitals';
 import './styles/design-tokens.css';
 import './styles/index.css';
 
@@ -46,6 +47,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </Provider>
   </React.StrictMode>
 );
+
+// Report Web Vitals in production
+if (import.meta.env.PROD) {
+  reportWebVitals();
+}
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {

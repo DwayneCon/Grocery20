@@ -47,6 +47,7 @@
     "react-router-dom": "^7.9.6",
     "react-speech-recognition": "^4.0.1",
     "tailwindcss": "^4.1.17",
+    "web-vitals": "^5.1.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

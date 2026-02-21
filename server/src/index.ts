@@ -1,8 +1,8 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import * as Sentry from '@sentry/node';
-import { testConnection } from './config/database.js';
+import pool, { testConnection } from './config/database.js';
 import { validateEnv } from './config/env.js';
 import config from './config/env.js';
 import {
@@ -59,12 +59,44 @@ app.use(sanitizeInput);
 app.use(rateLimiter);
 app.use(requestLogger); // Log all incoming requests
 
-// Health check endpoint
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'healthy',
+// Enhanced health check endpoint
+app.get('/health', async (_req: Request, res: Response) => {
+  const checks: Record<string, any> = {};
+  let overallHealthy = true;
+
+  // Check database connectivity
+  try {
+    const dbStart = Date.now();
+    const connection = await pool.getConnection();
+    await connection.query('SELECT 1');
+    connection.release();
+    const dbLatency = Date.now() - dbStart;
+    checks.database = { status: 'healthy', latency: `${dbLatency}ms` };
+  } catch {
+    checks.database = { status: 'unhealthy', latency: null };
+    overallHealthy = false;
+  }
+
+  // Check OpenAI API key configuration
+  checks.openai = { configured: Boolean(config.openai.apiKey) };
+
+  // Memory usage
+  const mem = process.memoryUsage();
+  const toMB = (bytes: number) => Math.round((bytes / 1024 / 1024) * 100) / 100;
+
+  const status = overallHealthy ? 'healthy' : 'unhealthy';
+
+  res.status(overallHealthy ? 200 : 503).json({
+    status,
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
+    uptime: process.uptime(),
+    memory: {
+      heapUsed: `${toMB(mem.heapUsed)} MB`,
+      heapTotal: `${toMB(mem.heapTotal)} MB`,
+      rss: `${toMB(mem.rss)} MB`,
+    },
+    checks,
   });
 });
 
