@@ -11,10 +11,13 @@ import {
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../features/auth/authSlice';
+import { RootState } from '../features/store';
+import { authService } from '../services/authService';
 import GlassCard from '../components/common/GlassCard';
 import AccessibilityMenu from '../components/common/AccessibilityMenu';
+import { springs } from '../utils/springConfig';
 
 const MainLayout = () => {
   const location = useLocation();
@@ -26,18 +29,41 @@ const MainLayout = () => {
   const [mouseNearBottom, setMouseNearBottom] = useState(false);
   const [hoveringDock, setHoveringDock] = useState(false);
 
+  // Get token from Redux store
+  const token = useSelector((state: RootState) => state.auth.token);
+
   const menuItems = [
     { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
-    { text: 'AI Chat', icon: <ChatIcon />, path: '/chat' },
+    { text: 'Chat with Nora', icon: <ChatIcon />, path: '/chat' },
     { text: 'Household', icon: <PeopleIcon />, path: '/household' },
     { text: 'Meal Plan', icon: <RestaurantIcon />, path: '/meal-plan' },
     { text: 'Shopping List', icon: <ShoppingCartIcon />, path: '/shopping-list' },
     { text: 'Budget', icon: <BudgetIcon />, path: '/budget' },
   ];
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      // Get refresh token from storage
+      const refreshToken = localStorage.getItem('refreshToken') || sessionStorage.getItem('refreshToken');
+
+      // Call backend logout endpoint to invalidate refresh token
+      if (token && refreshToken) {
+        await authService.logout(token);
+      }
+    } catch (error) {
+      // Even if logout fails, still clear local state
+    } finally {
+      // Clear all authentication state
+      dispatch(logout());
+
+      // Clear tokens from storage
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      sessionStorage.removeItem('refreshToken');
+
+      // Redirect to login
+      navigate('/login');
+    }
   };
 
   // Auto-hide dock behavior (macOS style)
@@ -93,17 +119,24 @@ const MainLayout = () => {
   }, [hoveringDock, mouseNearBottom, isMobile]);
 
   return (
-    <Box sx={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', position: 'relative', bgcolor: '#0f172a' }}>
+    <Box sx={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', position: 'relative', bgcolor: 'var(--bg-primary)' }}>
 
       {/* Content Area - Now Full Width */}
-      <Box component="main" sx={{ pb: { xs: 12, md: 16 }, width: '100%' }}>
+      <Box component="main" sx={{ pb: { xs: 12, md: 16 }, width: '100%', px: 'var(--space-3)' }}>
         <AnimatePresence mode='wait'>
           <motion.div
             key={location.pathname}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{
+              opacity: 1,
+              x: 0,
+              transition: springs.gentle,
+            }}
+            exit={{
+              opacity: 0,
+              x: -20,
+              transition: springs.snappy,
+            }}
           >
             <Outlet />
           </motion.div>
@@ -125,9 +158,9 @@ const MainLayout = () => {
             zIndex: 999,
             width: 40,
             height: 4,
-            borderRadius: 2,
-            bgcolor: 'rgba(78, 205, 196, 0.5)',
-            boxShadow: '0 0 20px rgba(78, 205, 196, 0.3)',
+            borderRadius: 'var(--radius-sm)',
+            bgcolor: 'rgba(255, 107, 53, 0.6)',
+            boxShadow: '0 0 20px rgba(255, 107, 53, 0.4)',
             animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             '@keyframes pulse': {
               '0%, 100%': {
@@ -149,15 +182,14 @@ const MainLayout = () => {
             initial={{ y: 120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 120, opacity: 0 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={springs.snappy}
             sx={{
               position: 'fixed',
               bottom: { xs: 24, md: 40 },
               left: '50%',
-              transform: 'translateX(-50%)',
               zIndex: 1000,
-              width: 'auto',
-              maxWidth: { xs: '95vw', md: '800px' },
+              display: 'flex',
+              justifyContent: 'center',
             }}
           >
         <GlassCard
@@ -166,23 +198,20 @@ const MainLayout = () => {
           onMouseEnter={() => setHoveringDock(true)}
           onMouseLeave={() => setHoveringDock(false)}
           sx={{
-            p: 1.5,
-            borderRadius: 50,
-            display: 'flex !important',
-            flexDirection: 'row !important',
+            p: 'var(--space-2)',
+            borderRadius: 'var(--radius-full)',
+            display: 'flex',
+            flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'center',
             gap: { xs: 1, md: 2 },
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            boxShadow: 'var(--shadow-elevated)',
             border: '1px solid rgba(255,255,255,0.15)',
             backdropFilter: 'blur(25px)',
-            background: 'rgba(15, 23, 42, 0.6)',
-            '& > *': {
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 'inherit'
-            }
+            background: 'rgba(26, 29, 46, 0.7)',
+            transform: 'translateX(-50%)',
+            width: 'fit-content',
+            maxWidth: { xs: '95vw', md: '800px' },
           }}
         >
           {menuItems.map((item) => {
@@ -191,22 +220,25 @@ const MainLayout = () => {
               <Tooltip key={item.text} title={item.text} placement="top" arrow>
                 <Box
                   component={motion.div}
-                  whileHover={{ scale: 1.15, y: -5 }}
+                  whileHover={{ scale: 1.08, y: -4 }}
                   whileTap={{ scale: 0.95 }}
+                  transition={springs.bouncy}
                   sx={{ position: 'relative' }}
                 >
                   <IconButton
                     onClick={() => navigate(item.path)}
                     size={isMobile ? "medium" : "large"}
                     sx={{
-                      color: isActive ? '#4ECDC4' : 'rgba(255,255,255,0.5)',
-                      bgcolor: isActive ? 'rgba(78, 205, 196, 0.1)' : 'transparent',
-                      transition: 'all 0.3s ease',
+                      color: isActive ? 'var(--chef-orange)' : 'rgba(255,255,255,0.5)',
+                      bgcolor: isActive ? 'rgba(255, 107, 53, 0.15)' : 'transparent',
+                      transition: 'all var(--transition-normal)',
                       '&:hover': {
-                        color: '#4ECDC4',
-                        bgcolor: 'rgba(255,255,255,0.05)',
+                        color: 'var(--chef-orange)',
+                        bgcolor: 'rgba(255, 107, 53, 0.1)',
+                        transform: 'scale(1.05)',
                       }
                     }}
+                    aria-label={item.text}
                   >
                     {item.icon}
                   </IconButton>
@@ -215,15 +247,17 @@ const MainLayout = () => {
                   {isActive && (
                     <Box
                       component={motion.div}
-                      layoutId="activeDot"
+                      layoutId="activeNav"
+                      transition={springs.bouncy}
                       sx={{
                         position: 'absolute',
                         bottom: -4,
                         left: '50%',
-                        width: 4,
-                        height: 4,
+                        width: 6,
+                        height: 6,
                         borderRadius: '50%',
-                        bgcolor: '#4ECDC4',
+                        bgcolor: 'var(--chef-orange)',
+                        boxShadow: '0 0 8px var(--chef-orange)',
                         transform: 'translateX(-50%)'
                       }}
                     />
@@ -243,9 +277,14 @@ const MainLayout = () => {
               <IconButton
                 onClick={handleLogout}
                 sx={{
-                  color: '#FF6B6B',
-                  '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' }
+                  color: 'var(--error)',
+                  transition: 'all var(--transition-normal)',
+                  '&:hover': {
+                    bgcolor: 'var(--error-bg)',
+                    transform: 'scale(1.05)',
+                  }
                 }}
+                aria-label="Logout"
               >
                 <LogoutIcon />
               </IconButton>
