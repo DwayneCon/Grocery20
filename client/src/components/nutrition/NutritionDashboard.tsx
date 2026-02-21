@@ -4,6 +4,8 @@ import { LocalFireDepartment, FitnessCenter, RiceBowl, Opacity } from '@mui/icon
 import { motion } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import nutritionService, { NutritionData } from '../../services/nutritionService';
+import NutritionRadar, { RadarAxis } from '../charts/NutritionRadar';
+import logger from '../../utils/logger';
 
 interface NutritionDashboardProps {
   mealPlanId: string;
@@ -27,7 +29,7 @@ const NutritionDashboard = ({ mealPlanId }: NutritionDashboardProps) => {
         setWeeklyAverages(response.data.weeklyAverages);
       }
     } catch (err) {
-      console.error('Error loading nutrition:', err);
+      logger.error('Error loading nutrition:', err as Error);
       setError('Failed to load nutrition data');
     } finally {
       setLoading(false);
@@ -85,6 +87,24 @@ const NutritionDashboard = ({ mealPlanId }: NutritionDashboardProps) => {
       color: '#A8E6CF',
       goal: 70,
     },
+  ];
+
+  // Build radar chart data from macros + micronutrients
+  const radarData: RadarAxis[] = [
+    { axis: 'Protein', value: weeklyAverages.protein || 0, max: 50 },
+    { axis: 'Carbs', value: weeklyAverages.carbs || 0, max: 250 },
+    { axis: 'Fat', value: weeklyAverages.fat || 0, max: 70 },
+    { axis: 'Fiber', value: weeklyAverages.fiber || 0, max: 30 },
+    { axis: 'Vitamins', value: weeklyAverages.sugar ? Math.min(weeklyAverages.sugar, 50) : 25, max: 50 },
+  ];
+
+  // Recommended target zone (100% of daily recommended)
+  const radarTargets: RadarAxis[] = [
+    { axis: 'Protein', value: 50, max: 50 },
+    { axis: 'Carbs', value: 250, max: 250 },
+    { axis: 'Fat', value: 70, max: 70 },
+    { axis: 'Fiber', value: 30, max: 30 },
+    { axis: 'Vitamins', value: 50, max: 50 },
   ];
 
   return (
@@ -160,6 +180,21 @@ const NutritionDashboard = ({ mealPlanId }: NutritionDashboardProps) => {
           );
         })}
       </Grid>
+
+      {/* Nutrition Radar Chart */}
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)', letterSpacing: 2, mb: 2, display: 'block' }}>
+          MACRO BALANCE
+        </Typography>
+        <GlassCard intensity="light" sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+          <NutritionRadar
+            data={radarData}
+            targets={radarTargets}
+            size={280}
+            color="#4ECDC4"
+          />
+        </GlassCard>
+      </Box>
 
       {/* Additional Micronutrients */}
       {(weeklyAverages.fiber || weeklyAverages.sugar || weeklyAverages.sodium) && (
