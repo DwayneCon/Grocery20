@@ -44,6 +44,7 @@ import streakRoutes from './api/streak/streak.routes.js';
 import achievementsRoutes from './api/achievements/achievements.routes.js';
 import suggestionsRoutes from './api/suggestions/suggestions.routes.js';
 import ttsRoutes from './api/ai/tts.routes.js';
+import visionRoutes from './api/vision/vision.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -57,7 +58,8 @@ const httpServer = createServer(app);
 const PORT = config.port;
 
 // Attach Socket.IO to the HTTP server
-const io = createSocketServer(httpServer);
+// Exported so other modules can emit events if needed
+export const io = createSocketServer(httpServer);
 
 // Middleware
 app.use(cors(corsOptions));
@@ -126,6 +128,7 @@ app.use('/api/streak', streakRoutes);
 app.use('/api/achievements', achievementsRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/ai/tts', ttsRoutes);
+app.use('/api/vision', visionRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
