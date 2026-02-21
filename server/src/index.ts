@@ -14,6 +14,7 @@ import {
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger, errorLogger } from './middleware/requestLogger.js';
 import { logger } from './utils/logger.js';
+import { startScheduler } from './services/cron/scheduler.js';
 
 // Initialize Sentry error monitoring
 if (config.sentry.dsn) {
@@ -141,6 +142,9 @@ const startServer = async () => {
       logger.info(`Environment: ${config.nodeEnv}`);
       logger.info(`API: http://localhost:${PORT}/api`);
       logger.info(`Health: http://localhost:${PORT}/health`);
+
+      // Start cron-based background scheduler
+      startScheduler();
     });
   } catch (error) {
     logger.error('Failed to start server', error as Error);
