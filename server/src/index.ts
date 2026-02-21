@@ -40,6 +40,7 @@ import storesRoutes from './api/stores/stores.routes.js';
 import krogerRoutes from './api/kroger/kroger.routes.js';
 import streakRoutes from './api/streak/streak.routes.js';
 import achievementsRoutes from './api/achievements/achievements.routes.js';
+import suggestionsRoutes from './api/suggestions/suggestions.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -116,6 +117,7 @@ app.use('/api/stores', storesRoutes);
 app.use('/api/kroger', krogerRoutes);
 app.use('/api/streak', streakRoutes);
 app.use('/api/achievements', achievementsRoutes);
+app.use('/api/suggestions', suggestionsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
