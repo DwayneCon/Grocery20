@@ -5,9 +5,11 @@ import {
   Dashboard as DashboardIcon,
   Chat as ChatIcon,
   Restaurant as RestaurantIcon,
+  MenuBook as MenuBookIcon,
   ShoppingCart as ShoppingCartIcon,
   AccountBalanceWallet as BudgetIcon,
   People as PeopleIcon,
+  Inventory2 as InventoryIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -37,7 +39,9 @@ const MainLayout = () => {
     { text: 'Chat with Nora', icon: <ChatIcon />, path: '/chat' },
     { text: 'Household', icon: <PeopleIcon />, path: '/household' },
     { text: 'Meal Plan', icon: <RestaurantIcon />, path: '/meal-plan' },
+    { text: 'Recipes', icon: <MenuBookIcon />, path: '/recipes' },
     { text: 'Shopping List', icon: <ShoppingCartIcon />, path: '/shopping-list' },
+    { text: 'Inventory', icon: <InventoryIcon />, path: '/inventory' },
     { text: 'Budget', icon: <BudgetIcon />, path: '/budget' },
   ];
 
