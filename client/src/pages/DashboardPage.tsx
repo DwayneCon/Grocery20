@@ -1,446 +1,335 @@
 /* client/src/pages/DashboardPage.tsx */
 import { useEffect, useState } from 'react';
-import { Box, Typography, Avatar, Chip, Grid } from '@mui/material';
-
-import { useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-  AutoAwesome,
-  RestaurantMenu,
-  ShoppingCartOutlined,
-  TrendingUp,
-  ArrowOutward,
-  Warning
-} from '@mui/icons-material';
+import { Box, Typography, Alert, Snackbar } from '@mui/material';
 import { motion } from 'framer-motion';
+import { useSelector, useDispatch } from 'react-redux';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
+import PageTransition from '../components/common/PageTransition';
+import BentoGrid, { bentoItemVariants } from '../components/dashboard/BentoGrid';
+import WeatherGreeting from '../components/dashboard/WeatherGreeting';
+import QuickActions from '../components/dashboard/QuickActions';
+import ActivityFeed from '../components/dashboard/ActivityFeed';
+import StreakCounter from '../components/dashboard/StreakCounter';
 import BudgetTracker from '../components/budget/BudgetTracker';
 import NutritionDashboard from '../components/nutrition/NutritionDashboard';
+import OnboardingWizard from '../components/onboarding/OnboardingWizard';
 import { RootState, AppDispatch } from '../features/store';
 import { fetchHouseholdSummary } from '../features/household/householdSlice';
-import { sanitizeText } from '../utils/sanitize';
+import { updateUser } from '../features/auth/authSlice';
 import { useTheme } from '../contexts/ThemeContext';
 import { mealPlanService } from '../services/mealPlanService';
-import inventoryService from '../services/inventoryService';
+import { streakService, StreakData } from '../services/streakService';
+import householdService from '../services/householdService';
+import { logger } from '../utils/logger';
 
 const DashboardPage = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { summary } = useSelector((state: RootState) => state.household);
   const { mode } = useTheme();
 
   // Real data state
-  const [todayMealsCount, setTodayMealsCount] = useState(0);
   const [currentMealPlanId, setCurrentMealPlanId] = useState<string | null>(null);
-  const [expiringItemsCount, setExpiringItemsCount] = useState(0);
-  const [shoppingListCount, setShoppingListCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [_household, setHousehold] = useState<any>(null);
 
-  // Fetch household summary on mount
+  // Check if user has household, trigger onboarding if not
   useEffect(() => {
+    const checkHousehold = async () => {
+      if (!user) return;
+
+      if (user.householdId) {
+        try {
+          const householdData = await householdService.getHousehold(user.householdId);
+          setHousehold(householdData);
+          setShowOnboarding(false);
+        } catch (err) {
+          logger.error('Error fetching household', err as Error);
+          setShowOnboarding(true);
+        }
+      } else {
+        setShowOnboarding(true);
+      }
+    };
+
+    checkHousehold();
+  }, [user?.householdId]);
+
+  // Load dashboard data
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      if (!user?.householdId) return;
+
+      try {
+        dispatch(fetchHouseholdSummary(user.householdId));
+
+        // Load current meal plan
+        const mealPlanResponse = await mealPlanService.getCurrentWeekPlan(user.householdId);
+        if (mealPlanResponse.success && mealPlanResponse.mealPlan) {
+          setCurrentMealPlanId(mealPlanResponse.mealPlan.mealPlan.id);
+        }
+
+        // Load streak data
+        const streakDataResponse = await streakService.getStreakData();
+        setStreakData(streakDataResponse);
+      } catch (err) {
+        logger.error('Error loading dashboard data', err as Error);
+        setError('Failed to load dashboard data. Please try refreshing the page.');
+      }
+    };
+
     if (user?.householdId) {
-      dispatch(fetchHouseholdSummary(user.householdId));
       loadDashboardData();
     }
   }, [dispatch, user?.householdId]);
 
-  const loadDashboardData = async () => {
-    if (!user?.householdId) return;
-
+  // Handle onboarding completion
+  const handleOnboardingComplete = async (data: any) => {
     try {
-      // Load current meal plan
-      const mealPlanResponse = await mealPlanService.getCurrentWeekPlan(user.householdId);
-      if (mealPlanResponse.success && mealPlanResponse.mealPlan) {
-        const meals = mealPlanResponse.mealPlan.meals || [];
-        const today = new Date().toDateString();
-        const todayMeals = meals.filter((meal: any) => {
-          const mealDate = new Date(meal.meal_date).toDateString();
-          return mealDate === today;
-        });
-        setTodayMealsCount(todayMeals.length);
-        setCurrentMealPlanId(mealPlanResponse.mealPlan.mealPlan.id);
+      const newHousehold = await householdService.createHousehold({
+        name: data.householdName,
+        budgetWeekly: data.weeklyBudget,
+      });
+
+      if (data.memberCount > 0) {
+        for (let i = 0; i < data.memberCount; i++) {
+          await householdService.addMember(newHousehold.id, {
+            name: i === 0 ? user?.name || 'Member 1' : `Member ${i + 1}`,
+            age: undefined,
+            dietaryRestrictions: data.dietaryRestrictions || [],
+            preferences: {
+              cuisines: data.cuisinePreferences || [],
+              cookingSkill: data.cookingSkill,
+              equipment: data.hasKitchenEquipment || [],
+            },
+          });
+        }
       }
 
-      // Load expiring inventory items
-      const inventoryResponse = await inventoryService.getExpiringSoon(user.householdId, 3);
-      if (inventoryResponse.success) {
-        setExpiringItemsCount(inventoryResponse.data.length);
-      }
-
-      // Shopping list count from summary
-      if (summary?.activeShoppingLists) {
-        const totalItems = summary.activeShoppingLists.reduce((sum: number, list: any) => sum + (list.itemCount || 0), 0);
-        setShoppingListCount(totalItems);
-      }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      dispatch(updateUser({ householdId: newHousehold.id }));
+      setHousehold(newHousehold);
+      setShowOnboarding(false);
+      logger.info('Onboarding completed successfully', { metadata: { householdId: newHousehold.id } });
+    } catch (err) {
+      logger.error('Error completing onboarding', err as Error);
+      setError('Failed to complete onboarding. Please try again.');
     }
   };
 
-  // Animation Stagger
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const item = {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 }
-  };
-
-  // Theme-aware aurora colors - Vibrant 5-color gradient
+  // Culinary Spectrum aurora colors
   const auroraColors = mode === 'dark'
-    ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
-    : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
+    ? ['#FF6B35', '#F4A460', '#6A4C93', '#05AF5C', '#FFD93D']
+    : ['#FFDDC1', '#FFEDBC', '#E8D5F2', '#C1F7DC', '#FFF9D6'];
+
+  // Show onboarding wizard if user has no household
+  if (showOnboarding) {
+    return (
+      <AuroraBackground speed={20} colors={auroraColors}>
+        <Box sx={{
+          p: { xs: 2, sm: 3, md: 4 },
+          maxWidth: '800px',
+          mx: 'auto',
+          position: 'relative',
+          zIndex: 2,
+        }}>
+          <OnboardingWizard
+            onComplete={handleOnboardingComplete}
+            onSkip={() => setShowOnboarding(false)}
+          />
+        </Box>
+      </AuroraBackground>
+    );
+  }
 
   return (
-    <AuroraBackground speed={30} colors={auroraColors}>
-      <Box sx={{
-        p: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 },
-        maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1800px' },
-        mx: 'auto',
-        position: 'relative',
-        zIndex: 2,
-        width: '100%'
-      }}>
-
-        {/* Header: Editorial Style */}
+    <AuroraBackground speed={20} colors={auroraColors}>
+      <PageTransition type="fade">
         <Box sx={{
-          mb: { xs: 3, md: 5 },
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          flexWrap: 'wrap',
-          gap: 2
+          p: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 },
+          maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1800px' },
+          mx: 'auto',
+          position: 'relative',
+          zIndex: 2,
+          width: '100%',
         }}>
-          <Box>
-            <Typography
-              variant="overline"
-              sx={{
-                color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
-                letterSpacing: 3,
-                fontSize: { xs: '0.7rem', md: '0.75rem' }
-              }}
-            >
-              OVERVIEW
-            </Typography>
-            <Typography
-              variant="h2"
-              fontWeight="900"
-              sx={{
-                background: mode === 'dark'
-                  ? 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)'
-                  : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontSize: { xs: '2rem', sm: '2.5rem', md: '3.5rem', lg: '4rem' },
-                lineHeight: 1
-              }}
-            >
-              Hello, {user?.name ? sanitizeText(user.name.split(' ')[0]) : 'Chef'}.
-            </Typography>
-          </Box>
-          <Avatar
-            sx={{
-              width: { xs: 48, md: 64 },
-              height: { xs: 48, md: 64 },
-              bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-              border: mode === 'dark' ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)',
-              color: mode === 'dark' ? 'white' : '#000000',
-              display: { xs: 'flex', sm: 'flex' }
-            }}
-          >
-            {user?.name?.[0] || 'C'}
-          </Avatar>
-        </Box>
 
-        {/* BENTO GRID LAYOUT */}
-        <Grid container spacing={{ xs: 2, md: 3 }}>
+          {/* Bento Grid Layout */}
+          <BentoGrid>
 
-          {/* 1. HERO: AI Chef (Large) */}
-          <Grid size={{ xs: 12, md: 8 }}>
-            <GlassCard
-              intensity="ultra"
-              onClick={() => navigate('/chat')}
-              sx={{
-                height: '100%',
-                minHeight: { xs: 300, md: 350 },
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                position: 'relative',
-                overflow: 'hidden',
-                p: { xs: 3, md: 4 }
-              }}
+            {/* 1. GREETING - spans greeting area */}
+            <Box
+              component={motion.div}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'greeting' }}
             >
-              <Box sx={{ position: 'absolute', top: { xs: 16, md: 20 }, right: { xs: 16, md: 20 } }}>
-                <ArrowOutward sx={{
-                  color: mode === 'dark' ? 'white' : '#000000',
-                  opacity: 0.7
-                }} />
-              </Box>
+              <WeatherGreeting userName={user?.name || ''} />
+            </Box>
 
-              <Box>
-                <Chip
-                  icon={<AutoAwesome sx={{ "&&": { color: "#FFD700" } }} />}
-                  label="AI Assistant"
-                  sx={{
-                    bgcolor: mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.5)',
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    backdropFilter: 'blur(10px)',
-                    border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-                    mb: 2,
-                    fontSize: { xs: '0.75rem', md: '0.8125rem' }
-                  }}
+            {/* 2. STREAK COUNTER - spans streak area */}
+            <Box
+              component={motion.div}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'streak' }}
+            >
+              {streakData ? (
+                <StreakCounter
+                  streak={streakData.currentStreak}
+                  longestStreak={streakData.longestStreak}
                 />
-                <Typography
-                  variant="h3"
-                  fontWeight="900"
-                  sx={{
-                    background: mode === 'dark'
-                      ? 'linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%)'
-                      : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    mb: 1,
-                    fontSize: { xs: '1.75rem', sm: '2rem', md: '2.5rem' }
-                  }}
-                >
-                  Plan your next meal
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                    maxWidth: '500px',
-                    fontSize: { xs: '1rem', md: '1.1rem' }
-                  }}
-                >
-                  I can help you generate a meal plan based on your current inventory or cravings.
-                </Typography>
-              </Box>
-
-              <Box sx={{
-                mt: { xs: 3, md: 4 },
-                p: 2,
-                bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                borderRadius: 3,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 2,
-                backdropFilter: 'blur(10px)'
-              }}>
-                <Box sx={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  bgcolor: '#4ECDC4',
-                  boxShadow: '0 0 10px #4ECDC4'
-                }} />
-                <Typography sx={{
-                  color: mode === 'dark' ? 'rgba(255,255,255,0.9)' : '#000000',
-                  fontSize: { xs: '0.9rem', md: '1rem' }
-                }}>
-                  "Suggest a high-protein dinner under $15..."
-                </Typography>
-              </Box>
-            </GlassCard>
-          </Grid>
-
-          {/* 2. Budget Tracker - Full Width */}
-          <Grid size={{ xs: 12 }}>
-            <motion.div variants={item}>
-              {user?.householdId ? (
-                <BudgetTracker householdId={user.householdId} />
               ) : (
-                <GlassCard intensity="strong" sx={{ height: '100%', minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-                  <Typography sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                    Please join or create a household to track your budget
+                <GlassCard
+                  intensity="strong"
+                  hover={false}
+                  sx={{
+                    height: '100%',
+                    minHeight: { xs: 200, md: 220 },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                    borderRadius: 'var(--radius-xl)',
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                      fontFamily: 'var(--font-body)',
+                    }}
+                  >
+                    Loading streak data...
                   </Typography>
                 </GlassCard>
               )}
-            </motion.div>
-          </Grid>
+            </Box>
 
-          {/* 3. Nutrition Dashboard - Full Width (if meal plan exists) */}
-          {currentMealPlanId && (
-            <Grid size={{ xs: 12 }}>
-              <motion.div variants={item}>
+            {/* 3. BUDGET TRACKER - spans budget area */}
+            <Box
+              component={motion.div}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'budget' }}
+            >
+              {user?.householdId ? (
+                <BudgetTracker householdId={user.householdId} />
+              ) : (
+                <GlassCard
+                  intensity="strong"
+                  hover={false}
+                  sx={{
+                    height: '100%',
+                    minHeight: { xs: 200, md: 220 },
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                    borderRadius: 'var(--radius-xl)',
+                  }}
+                >
+                  <Typography
+                    sx={{
+                      color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)',
+                      fontFamily: 'var(--font-body)',
+                      textAlign: 'center',
+                    }}
+                  >
+                    Join or create a household to track your budget
+                  </Typography>
+                </GlassCard>
+              )}
+            </Box>
+
+            {/* 4. NUTRITION DASHBOARD - spans nutrition area */}
+            <Box
+              component={motion.div}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'nutrition' }}
+            >
+              {currentMealPlanId ? (
                 <NutritionDashboard mealPlanId={currentMealPlanId} />
-              </motion.div>
-            </Grid>
-          )}
+              ) : (
+                <GlassCard
+                  intensity="strong"
+                  hover={false}
+                  sx={{
+                    height: '100%',
+                    minHeight: { xs: 180, md: 200 },
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    p: 3,
+                    borderRadius: 'var(--radius-xl)',
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.45)',
+                      letterSpacing: 2,
+                      fontWeight: 'bold',
+                      fontSize: '0.7rem',
+                    }}
+                  >
+                    NUTRITION
+                  </Typography>
+                  <Typography
+                    sx={{
+                      color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
+                      fontFamily: 'var(--font-body)',
+                      textAlign: 'center',
+                      fontSize: '0.9rem',
+                    }}
+                  >
+                    Create a meal plan to see nutrition insights
+                  </Typography>
+                </GlassCard>
+              )}
+            </Box>
 
-          {/* 3. QUICK ACTION: Shopping List (Square) */}
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <GlassCard
-              intensity="ultra"
+            {/* 5. ACTIVITY FEED - spans activity area */}
+            <Box
               component={motion.div}
-              variants={item}
-              onClick={() => navigate('/shopping-list')}
-              sx={{
-                height: { xs: 180, md: 200 },
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                p: { xs: 2.5, md: 3 }
-              }}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'activity' }}
             >
-              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <ShoppingCartOutlined sx={{
-                  color: mode === 'dark' ? 'white' : '#000000',
-                  fontSize: { xs: 28, md: 30 }
-                }} />
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  {shoppingListCount}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.1rem', md: '1.25rem' }
-                  }}
-                >
-                  Shopping List
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                    fontSize: { xs: '0.85rem', md: '0.875rem' }
-                  }}
-                >
-                  {shoppingListCount === 0 ? 'No items' : `${summary?.activeShoppingLists?.length || 0} active lists`}
-                </Typography>
-              </Box>
-            </GlassCard>
-          </Grid>
+              <ActivityFeed />
+            </Box>
 
-          {/* 4. QUICK ACTION: Meal Plan (Square) */}
-          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-            <GlassCard
-              intensity="ultra"
+            {/* 6. QUICK ACTIONS - spans actions area */}
+            <Box
               component={motion.div}
-              variants={item}
-              onClick={() => navigate('/meal-plan')}
-              sx={{
-                height: { xs: 180, md: 200 },
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-                p: { xs: 2.5, md: 3 }
-              }}
+              variants={bentoItemVariants}
+              sx={{ gridArea: 'actions' }}
             >
-               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                <RestaurantMenu sx={{
-                  color: mode === 'dark' ? 'white' : '#000000',
-                  fontSize: { xs: 28, md: 30 }
-                }} />
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  {todayMealsCount}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.1rem', md: '1.25rem' }
-                  }}
-                >
-                  Today's Menu
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                    fontSize: { xs: '0.85rem', md: '0.875rem' }
-                  }}
-                >
-                  {todayMealsCount === 0 ? 'No meals planned' : `${todayMealsCount} meals today`}
-                </Typography>
-              </Box>
-            </GlassCard>
-          </Grid>
+              <QuickActions />
+            </Box>
 
-          {/* 5. INSIGHT: Expiring Items (Rectangle) */}
-          <Grid size={{ xs: 12, md: 4 }}>
-             <GlassCard
-              intensity="ultra"
-              component={motion.div}
-              variants={item}
-              onClick={() => navigate('/inventory')}
-              sx={{
-                height: { xs: 180, md: 200 },
-                display: 'flex',
-                alignItems: 'center',
-                gap: { xs: 2, md: 3 },
-                p: { xs: 2.5, md: 3 },
-                cursor: expiringItemsCount > 0 ? 'pointer' : 'default'
-              }}
-            >
-               <Box sx={{
-                 p: 2,
-                 bgcolor: expiringItemsCount > 0 ? 'rgba(255,107,107,0.2)' : 'rgba(78,205,196,0.2)',
-                 borderRadius: '50%'
-               }}>
-                 {expiringItemsCount > 0 ? (
-                   <Warning sx={{ fontSize: { xs: 28, md: 32 }, color: '#FF6B6B' }} />
-                 ) : (
-                   <TrendingUp sx={{ fontSize: { xs: 28, md: 32 }, color: '#4ECDC4' }} />
-                 )}
-               </Box>
-               <Box>
-                 <Typography
-                   variant="h5"
-                   fontWeight="bold"
-                   sx={{
-                     color: mode === 'dark' ? 'white' : '#000000',
-                     fontSize: { xs: '1.15rem', md: '1.5rem' }
-                   }}
-                 >
-                   {expiringItemsCount > 0 ? `${expiringItemsCount} Items Expiring` : 'Inventory Fresh'}
-                 </Typography>
-                 <Typography
-                   variant="body2"
-                   sx={{
-                     color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                     fontSize: { xs: '0.85rem', md: '0.875rem' }
-                   }}
-                 >
-                   {expiringItemsCount > 0 ? 'Use these items soon!' : 'All items are fresh'}
-                 </Typography>
-               </Box>
-            </GlassCard>
-          </Grid>
+          </BentoGrid>
+        </Box>
+      </PageTransition>
 
-        </Grid>
-      </Box>
+      {/* Error Snackbar */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setError(null)}
+          severity="error"
+          sx={{
+            width: '100%',
+            borderRadius: 'var(--radius-md)',
+            bgcolor: 'rgba(211, 47, 47, 0.1)',
+            border: '1px solid rgba(211, 47, 47, 0.3)',
+          }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </AuroraBackground>
   );
 };
