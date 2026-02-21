@@ -23,7 +23,6 @@ import {
   Tab,
 } from '@mui/material';
 import {
-  Share,
   Add,
   CheckCircle,
   RadioButtonUnchecked,
@@ -41,6 +40,10 @@ import shoppingListService, { ShoppingList, ShoppingListItem } from '../services
 import { useSelector } from 'react-redux';
 import { RootState } from '../features/store';
 import PriceComparison from '../components/shopping/PriceComparison';
+import VirtualList from '../components/common/VirtualList';
+
+const VIRTUAL_LIST_THRESHOLD = 50;
+const LIST_ITEM_HEIGHT = 72;
 
 const ShoppingListPage = () => {
   const { mode } = useTheme();
@@ -654,33 +657,36 @@ const ShoppingListPage = () => {
         ) : activeTab === 0 ? (
           /* Shopping List Tab */
           <Grid container spacing={4}>
-            {categories.map((category) => (
-              <Grid size={{ xs: 12, md: 6 }} key={category}>
-                <GlassCard intensity="light" sx={{ p: 0, overflow: 'hidden', height: '100%' }}>
-                  <Box
-                    sx={{
-                      p: 3,
-                      bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
-                      borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
-                    }}
-                  >
-                    <Typography variant="h6" fontWeight="bold" sx={{ color: '#4ECDC4' }}>
-                      {sanitizeText(category)}
-                    </Typography>
-                  </Box>
+            {categories.map((category) => {
+              const categoryItems = currentList.items.filter(
+                (item) => (item.category || 'Uncategorized') === category
+              );
+              const shouldVirtualize = currentList.items.length > VIRTUAL_LIST_THRESHOLD;
 
-                  <Box sx={{ p: 2 }}>
-                    <AnimatePresence>
-                      {currentList.items
-                        .filter((item) => (item.category || 'Uncategorized') === category)
-                        .map((item) => (
-                          <motion.div
-                            key={item.id}
-                            layout
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                          >
+              return (
+                <Grid size={{ xs: 12, md: 6 }} key={category}>
+                  <GlassCard intensity="light" sx={{ p: 0, overflow: 'hidden', height: '100%' }}>
+                    <Box
+                      sx={{
+                        p: 3,
+                        bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                        borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: '#4ECDC4' }}>
+                        {sanitizeText(category)}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ p: 2 }}>
+                      {shouldVirtualize ? (
+                        <VirtualList
+                          items={categoryItems}
+                          itemHeight={LIST_ITEM_HEIGHT}
+                          containerHeight={Math.min(categoryItems.length * LIST_ITEM_HEIGHT, 420)}
+                          overscan={6}
+                          getKey={(item) => item.id}
+                          renderItem={(item) => (
                             <Box
                               sx={{
                                 p: 2,
@@ -727,13 +733,73 @@ const ShoppingListPage = () => {
                                 <Delete fontSize="small" />
                               </IconButton>
                             </Box>
-                          </motion.div>
-                        ))}
-                    </AnimatePresence>
-                  </Box>
-                </GlassCard>
-              </Grid>
-            ))}
+                          )}
+                        />
+                      ) : (
+                        <AnimatePresence>
+                          {categoryItems.map((item) => (
+                            <motion.div
+                              key={item.id}
+                              layout
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                            >
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  mb: 1,
+                                  borderRadius: 3,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 2,
+                                  bgcolor: item.purchased
+                                    ? mode === 'dark'
+                                      ? 'rgba(255,255,255,0.02)'
+                                      : 'rgba(0,0,0,0.02)'
+                                    : mode === 'dark'
+                                    ? 'rgba(255,255,255,0.1)'
+                                    : 'rgba(0,0,0,0.1)',
+                                  transition: 'all 0.2s ease',
+                                }}
+                              >
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleToggleItem(item.id)}
+                                  sx={{ color: item.purchased ? '#4ECDC4' : mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+                                >
+                                  {item.purchased ? <CheckCircle /> : <RadioButtonUnchecked />}
+                                </IconButton>
+                                <Box
+                                  sx={{
+                                    flex: 1,
+                                    opacity: item.purchased ? 0.5 : 1,
+                                    textDecoration: item.purchased ? 'line-through' : 'none',
+                                  }}
+                                >
+                                  <Typography variant="body1" fontWeight="500" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                    {sanitizeText(item.name)}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
+                                    {item.quantity} {item.unit}
+                                  </Typography>
+                                </Box>
+                                <IconButton size="small" onClick={() => openEditDialog(item)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={() => handleDeleteItem(item.id)} sx={{ color: '#FF6B6B' }}>
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      )}
+                    </Box>
+                  </GlassCard>
+                </Grid>
+              );
+            })}
           </Grid>
         ) : (
           /* Price Comparison Tab */
