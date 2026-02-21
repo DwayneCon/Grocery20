@@ -13,6 +13,9 @@ import { saveMealPlanWithRecipes } from './recipeHelper.js';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
 import { MASTER_SYSTEM_PROMPT } from './masterPrompt.js';
+import { logger } from '../../utils/logger.js';
+import preferenceLearningEngine from '../../services/ai/preferenceLearningEngine.js';
+import { extractPreferences, getMemories } from '../../services/ai/preferenceMemory.js';
 
 // Initialize OpenAI client
 // Note: Don't include organization if it causes auth issues
@@ -50,6 +53,46 @@ async function buildHouseholdContext(householdId: string) {
       'SELECT * FROM dietary_preferences WHERE household_id = ?',
       [householdId]
     );
+
+    // Get learned preferences from meal interactions
+    const interactions = await query<any[]>(
+      'SELECT * FROM meal_interactions WHERE household_id = ? ORDER BY interaction_date DESC LIMIT 100',
+      [householdId]
+    );
+
+    // Use sophisticated preference learning engine to get learned preferences
+    let learnedPreferenceSummary = '';
+    try {
+      learnedPreferenceSummary = await preferenceLearningEngine.generatePreferenceSummary(householdId);
+    } catch (error) {
+      logger.error('Error getting learned preferences', error as Error);
+      // Fall back to basic analysis if preference engine fails
+      learnedPreferenceSummary = '';
+    }
+
+    // Still analyze for basic patterns (for backward compatibility)
+    const accepted = interactions.filter((i: any) => i.action === 'accepted');
+    const rejected = interactions.filter((i: any) => i.action === 'rejected');
+
+    const learnedCuisines = new Set<string>();
+    const learnedProteins = new Set<string>();
+    const learnedDislikes = new Set<string>();
+
+    accepted.forEach((meal: any) => {
+      if (meal.cuisine_type) learnedCuisines.add(meal.cuisine_type);
+      if (meal.main_protein) learnedProteins.add(meal.main_protein);
+    });
+
+    // Track commonly rejected ingredients
+    rejected.forEach((meal: any) => {
+      if (meal.meal_name) {
+        // Extract potential problem ingredients from rejected meals
+        const mealLower = meal.meal_name.toLowerCase();
+        if (mealLower.includes('mushroom')) learnedDislikes.add('mushrooms');
+        if (mealLower.includes('seafood') || mealLower.includes('fish') || mealLower.includes('shrimp')) learnedDislikes.add('seafood');
+        if (mealLower.includes('tomato')) learnedDislikes.add('tomatoes');
+      }
+    });
 
     // Parse JSON fields
     const parseJsonField = (field: any, defaultValue: any) => {
@@ -111,14 +154,50 @@ async function buildHouseholdContext(householdId: string) {
       }
     });
 
+    // Merge learned dislikes with existing dislikes
+    const allDislikes = [...new Set([...dislikes, ...Array.from(learnedDislikes)])];
+    const allLikes = [...new Set([...likes, ...Array.from(learnedProteins)])];
+
     // Format dietary restrictions with severity
     const formattedRestrictions = {
       critical_allergies: [...new Set(allergies)],
       intolerances: [...new Set(intolerances)],
       restrictions: [...new Set(restrictions)],
-      preferences: [...new Set(likes)],
-      dislikes: [...new Set(dislikes)]
+      preferences: allLikes,
+      dislikes: allDislikes
     };
+
+    // Get recent meal history (last 30 days of accepted meals)
+    const recentMeals = await query<any[]>(
+      `SELECT
+        meal_name,
+        cuisine_type,
+        main_protein,
+        interaction_date
+      FROM meal_interactions
+      WHERE household_id = ? AND action = 'accepted'
+      ORDER BY interaction_date DESC
+      LIMIT 50`,
+      [householdId]
+    );
+
+    // Also get meals from current/recent meal plans
+    const mealPlanMeals = await query<any[]>(
+      `SELECT DISTINCT r.name as meal_name
+      FROM meal_plan_meals mpm
+      JOIN meal_plans mp ON mpm.meal_plan_id = mp.id
+      JOIN recipes r ON mpm.recipe_id = r.id
+      WHERE mp.household_id = ?
+        AND mp.week_start >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      LIMIT 30`,
+      [householdId]
+    );
+
+    // Combine and format meal history
+    const mealHistory = [
+      ...recentMeals.map(m => m.meal_name),
+      ...mealPlanMeals.map(m => m.meal_name)
+    ].filter(Boolean);
 
     // Return structured context data
     return {
@@ -127,13 +206,21 @@ async function buildHouseholdContext(householdId: string) {
       memberCount: members.length,
       members: parsedMembers.map(m => `${m.name}${m.age ? ` (${m.age}yo)` : ''}`).join(', '),
       memberDetails: parsedMembers,
+      learnedPreferences: {
+        favoriteCuisines: Array.from(learnedCuisines),
+        favoriteProteins: Array.from(learnedProteins),
+        totalAccepted: accepted.length,
+        totalRejected: rejected.length,
+        summary: learnedPreferenceSummary // Add AI-generated summary
+      },
+      mealHistory: [...new Set(mealHistory)], // Remove duplicates
       weeklyBudget: household.budget_weekly ? `$${parseFloat(String(household.budget_weekly)).toFixed(2)}` : 'Not set',
       dietaryRestrictions: formattedRestrictions,
       season: getCurrentSeason(),
-      location: 'United States' // TODO: Get from household data when available
+      location: household.location || 'United States' // Defaults to US; add location field to households table for customization
     };
   } catch (error) {
-    console.error('Error building household context:', error);
+    logger.error('Error building household context', error as Error);
     return null;
   }
 }
@@ -148,7 +235,7 @@ function getCurrentSeason(): string {
 }
 
 // Helper to replace template variables in system prompt
-function replaceTemplateVariables(prompt: string, context: any): string {
+function replaceTemplateVariables(prompt: string, context: any, preferenceMemories?: string): string {
   if (!context) {
     // Return prompt with empty placeholders if no context
     return prompt
@@ -161,7 +248,8 @@ function replaceTemplateVariables(prompt: string, context: any): string {
       .replace(/\{\{MEAL_HISTORY\}\}/g, 'Not available')
       .replace(/\{\{PANTRY_INVENTORY\}\}/g, 'Not available')
       .replace(/\{\{USER_LOCATION\}\}/g, 'United States')
-      .replace(/\{\{CURRENT_SEASON\}\}/g, getCurrentSeason());
+      .replace(/\{\{CURRENT_SEASON\}\}/g, getCurrentSeason())
+      .replace(/\{\{PREFERENCE_MEMORIES\}\}/g, 'No remembered preferences yet.');
   }
 
   // Build session context summary
@@ -172,6 +260,9 @@ function replaceTemplateVariables(prompt: string, context: any): string {
   if (context.dietaryRestrictions.critical_allergies.length > 0) {
     dietaryInfo.push(`🚨 CRITICAL ALLERGIES (MUST AVOID): ${context.dietaryRestrictions.critical_allergies.join(', ')}`);
   }
+  if (context.dietaryRestrictions.dislikes.length > 0) {
+    dietaryInfo.push(`⚠️ STRONG DISLIKES (NEVER INCLUDE): ${context.dietaryRestrictions.dislikes.join(', ')}`);
+  }
   if (context.dietaryRestrictions.intolerances.length > 0) {
     dietaryInfo.push(`Intolerances: ${context.dietaryRestrictions.intolerances.join(', ')}`);
   }
@@ -179,13 +270,23 @@ function replaceTemplateVariables(prompt: string, context: any): string {
     dietaryInfo.push(`Restrictions: ${context.dietaryRestrictions.restrictions.join(', ')}`);
   }
 
-  // Format preferences
+  // Format preferences (enhanced with AI learning)
   const preferenceInfo = [];
+
+  // Include AI-learned preference summary first (most valuable)
+  if (context.learnedPreferences.summary) {
+    preferenceInfo.push(`🤖 AI-Learned Patterns: ${context.learnedPreferences.summary}`);
+  }
+
+  // Then include manually specified preferences
   if (context.dietaryRestrictions.preferences.length > 0) {
     preferenceInfo.push(`Likes: ${context.dietaryRestrictions.preferences.join(', ')}`);
   }
-  if (context.dietaryRestrictions.dislikes.length > 0) {
-    preferenceInfo.push(`Dislikes: ${context.dietaryRestrictions.dislikes.join(', ')}`);
+  if (context.learnedPreferences.favoriteCuisines.length > 0) {
+    preferenceInfo.push(`Frequently enjoyed cuisines: ${context.learnedPreferences.favoriteCuisines.join(', ')}`);
+  }
+  if (context.learnedPreferences.favoriteProteins.length > 0) {
+    preferenceInfo.push(`Preferred proteins: ${context.learnedPreferences.favoriteProteins.join(', ')}`);
   }
 
   return prompt
@@ -194,11 +295,14 @@ function replaceTemplateVariables(prompt: string, context: any): string {
     .replace(/\{\{HOUSEHOLD_MEMBERS\}\}/g, context.members)
     .replace(/\{\{DIETARY_RESTRICTIONS\}\}/g, dietaryInfo.length > 0 ? dietaryInfo.join('; ') : 'None')
     .replace(/\{\{WEEKLY_BUDGET\}\}/g, context.weeklyBudget)
-    .replace(/\{\{FOOD_PREFERENCES\}\}/g, preferenceInfo.length > 0 ? preferenceInfo.join('; ') : 'None specified')
-    .replace(/\{\{MEAL_HISTORY\}\}/g, 'Not available yet')
+    .replace(/\{\{FOOD_PREFERENCES\}\}/g, preferenceInfo.length > 0 ? preferenceInfo.join('\n') : 'None specified')
+    .replace(/\{\{MEAL_HISTORY\}\}/g, context.mealHistory && context.mealHistory.length > 0
+      ? `Recently suggested/planned meals (IMPORTANT - provide DIFFERENT meals to avoid repetition): ${context.mealHistory.join(', ')}`
+      : 'No recent meal history')
     .replace(/\{\{PANTRY_INVENTORY\}\}/g, 'Not tracked yet')
     .replace(/\{\{USER_LOCATION\}\}/g, context.location)
-    .replace(/\{\{CURRENT_SEASON\}\}/g, context.season);
+    .replace(/\{\{CURRENT_SEASON\}\}/g, context.season)
+    .replace(/\{\{PREFERENCE_MEMORIES\}\}/g, preferenceMemories || 'No remembered preferences yet.');
 }
 
 // Chat endpoint with conversation history persistence
@@ -219,12 +323,21 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
   try {
     // Load household context if provided
     let householdContext = null;
+    let preferenceMemories = '';
     if (householdId) {
       householdContext = await buildHouseholdContext(householdId);
+
+      // Extract any explicit preferences from the user's message (non-blocking)
+      extractPreferences(message, householdId).catch((err) => {
+        logger.error('Preference extraction failed (non-blocking)', err as Error);
+      });
+
+      // Retrieve stored preference memories for system prompt context
+      preferenceMemories = await getMemories(householdId);
     }
 
     // Replace template variables in system prompt
-    const systemPrompt = replaceTemplateVariables(SYSTEM_PROMPT, householdContext);
+    const systemPrompt = replaceTemplateVariables(SYSTEM_PROMPT, householdContext, preferenceMemories);
 
     // Load conversation history from database if enabled
     if (useHistory) {
@@ -246,9 +359,50 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
       { role: 'user', content: message },
     ];
 
-    // Detect if user is requesting a meal plan (needs more tokens and specific formatting)
-    const isMealPlanRequest = /\b(meal plan|week of meals|plan.*meals?|suggest.*meals?|menu for|what should.*eat)\b/i.test(message);
-    const maxTokens = isMealPlanRequest ? 3000 : 1000;
+    // Detect if user is requesting a meal plan (check current message AND recent conversation history)
+    const mealPlanKeywords = /\b(meal plan|week of meals|plan.*meals?|suggest.*meals?|menu for|what should.*eat|days? of meals?|weekly plan)\b/i;
+    const currentMessageIsMealPlan = mealPlanKeywords.test(message);
+
+    // Also check last 3 messages in conversation for meal plan context
+    const recentMessages = conversationContext.slice(-6); // Last 3 exchanges (user + assistant)
+    const conversationHasMealPlan = recentMessages.some(msg =>
+      typeof msg.content === 'string' && mealPlanKeywords.test(msg.content)
+    );
+
+    // Trigger meal plan mode if current message OR recent conversation mentions meal planning
+    const isMealPlanRequest = currentMessageIsMealPlan || conversationHasMealPlan;
+    const maxTokens = isMealPlanRequest ? 4096 : 2000; // Max 4096 for GPT-4 Turbo (full 7-day plan), 2000 for regular chat
+
+    // Build explicit allergy warning with actual items
+    const criticalAllergies = householdContext?.dietaryRestrictions?.critical_allergies || [];
+    const allergyWarning = criticalAllergies.length > 0
+      ? `\n🚨🚨🚨 CRITICAL LIFE-THREATENING ALLERGIES - ABSOLUTE ZERO TOLERANCE 🚨🚨🚨\nNEVER SUGGEST ANY MEAL CONTAINING THESE:\n${criticalAllergies.map((a: string) => `- ${a.toUpperCase()}`).join('\n')}\n`
+      : '';
+
+    const dislikes = householdContext?.dietaryRestrictions?.dislikes || [];
+    const dislikeWarning = dislikes.length > 0
+      ? `\n⚠️ STRONG DISLIKES - NEVER INCLUDE ⚠️\n${dislikes.map((d: string) => `- ${d}`).join('\n')}\n`
+      : '';
+
+    const intolerances = householdContext?.dietaryRestrictions?.intolerances || [];
+    const intoleranceWarning = intolerances.length > 0
+      ? `\n⚠️ INTOLERANCES - AVOID THESE:\n${intolerances.map((i: string) => `- ${i}`).join('\n')}\n`
+      : '';
+
+    const restrictions = householdContext?.dietaryRestrictions?.restrictions || [];
+    const restrictionWarning = restrictions.length > 0
+      ? `\n📋 DIETARY RESTRICTIONS:\n${restrictions.map((r: string) => `- ${r}`).join('\n')}\n`
+      : '';
+
+    // Build household context summary for meal plan requests
+    const learnedPrefs = householdContext?.learnedPreferences;
+    const learnedInsights = learnedPrefs?.totalAccepted && learnedPrefs.totalAccepted > 0
+      ? `\n🎓 LEARNED PREFERENCES (AI has learned from ${learnedPrefs.totalAccepted} accepted meals):\n- Favorite Cuisines: ${learnedPrefs.favoriteCuisines?.length > 0 ? learnedPrefs.favoriteCuisines.join(', ') : 'Still learning'}\n- Favorite Proteins: ${learnedPrefs.favoriteProteins?.length > 0 ? learnedPrefs.favoriteProteins.join(', ') : 'Still learning'}\n- Note: Prioritize these cuisines and proteins in meal suggestions!\n`
+      : '';
+
+    const householdContextSummary = householdContext
+      ? `\n📊 HOUSEHOLD INFORMATION AVAILABLE:\n- Household: ${householdContext.householdName}\n- Members: ${householdContext.members}\n- Budget: ${householdContext.weeklyBudget}\n- Preferences: ${householdContext.dietaryRestrictions.preferences.length > 0 ? householdContext.dietaryRestrictions.preferences.join(', ') : 'None specified'}${learnedInsights}\n✅ YOU HAVE ALL NECESSARY INFORMATION - Generate the meal plan now without asking more questions!\n`
+      : '';
 
     // Add formatting instructions for meal plans
     const messagesWithFormatting = isMealPlanRequest
@@ -257,38 +411,85 @@ export const chat = asyncHandler(async (req: AuthRequest, res: Response) => {
           {
             role: 'user' as const,
             content: `${message}
+${householdContextSummary}${allergyWarning}${dislikeWarning}${intoleranceWarning}${restrictionWarning}
+🚨 VERIFICATION CHECKLIST 🚨
+Before suggesting EACH meal, carefully verify it does NOT contain:
+- ANY items listed in CRITICAL ALLERGIES above (🚨)
+- ANY items listed in STRONG DISLIKES above (⚠️)
+- ANY items listed in INTOLERANCES above
+- ANY items that violate DIETARY RESTRICTIONS above
 
-CRITICAL FORMATTING RULES - Follow EXACTLY:
+DOUBLE-CHECK every ingredient in every meal against the lists above!
 
-For EACH individual meal recipe, use this EXACT structure (all sections in ONE block):
+🚨🚨🚨 CRITICAL FORMATTING RULES - Follow EXACTLY: 🚨🚨🚨
 
-🍽️ **Grilled Chicken Salad**
-⏱️ Prep: 10 min | Cook: 15 min
-💰 Cost per serving: ~$3.50
-✨ Why this works: High protein, fresh vegetables, quick to make
+MEAL PLAN GENERATION MODES:
+1. **SINGLE DAY MODE**: If user requests "Monday's meals" or "meals for Tuesday" - generate ONLY that day (3 meals)
+2. **FULL WEEK MODE**: If user requests "7-day meal plan" or "weekly plan" - generate all 7 days (21 meals)
+
+FOR SINGLE DAY (recommended to avoid token limits):
+- **EXACTLY 3 MEALS**: Breakfast, Lunch, Dinner for the requested day
+- Complete recipes with all details for each meal
+
+FOR FULL WEEK (if specifically requested):
+- **EXACTLY 7 DAYS**: Monday through Sunday
+- **EXACTLY 3 MEALS PER DAY**: Breakfast, Lunch, Dinner
+- **TOTAL: 21 COMPLETE MEAL RECIPES**
+- **DO NOT** stop after a few meals or skip any meal slots
+
+ORGANIZE THE MEAL PLAN BY DAY OF THE WEEK using this structure:
+
+---
+## **Monday**
+
+### **Breakfast**
+🍳 **[Breakfast Meal Name]**
+⏱️ Prep: [X] min | Cook: [Y] min
+💰 Cost per serving: ~$[amount]
+✨ Why this works: [Brief explanation]
 
 **Ingredients:**
-- 1 lb chicken breast
-- 2 cups mixed greens
-- 1/2 cup cherry tomatoes
+- [ingredient with quantity]
+- [ingredient with quantity]
 
 **Instructions:**
-1. Season and grill chicken for 6-8 minutes per side
-2. Slice chicken and arrange over greens
-3. Add tomatoes and dressing
+1. [Step]
+2. [Step]
 
 **Pro Tips:**
-- Marinate chicken for 30 minutes for extra flavor
-- Use pre-cooked chicken to save time
+- [Tip]
 
 ---
 
-IMPORTANT:
-- Start EVERY meal with an emoji (🍽️, 🥘, 🍲, etc.) + bold meal name
-- Include ALL sections (Ingredients, Instructions, Tips) in ONE continuous block
-- Use "---" or blank line to separate different meals
-- Group meals under these EXACT headers: "**Breakfast**", "**Lunch**", "**Dinner**"
-- Do NOT create separate cards for each section - keep them together!`
+### **Lunch**
+🥗 **[Lunch Meal Name]**
+[Same format as breakfast]
+
+---
+
+### **Dinner**
+🍽️ **[Dinner Meal Name]**
+[Same format as breakfast]
+
+---
+## **Tuesday**
+[Repeat for Tuesday's 3 meals]
+
+[Continue for all 7 days: Monday through Sunday]
+
+🚨 MANDATORY REQUIREMENTS FOR EVERY SINGLE MEAL:
+1. MUST start with day header (## **[Day]**)
+2. MUST have meal type subheader (### **[Breakfast/Lunch/Dinner]**)
+3. MUST have emoji + bold name
+4. MUST have Prep & Cook time
+5. MUST have Cost
+6. MUST have "Why this works" explanation
+7. MUST have complete **Ingredients:** section with AT LEAST 3 ingredients
+8. MUST have complete **Instructions:** section with AT LEAST 3 steps
+9. MUST have **Pro Tips:** section (optional but recommended)
+
+DO NOT just provide a description - EVERY meal needs the full recipe with ingredients and step-by-step instructions!
+DO NOT skip ingredients or instructions for ANY meal - all 21 meals must be complete recipes!`
           }
         ]
       : messages;
@@ -297,14 +498,13 @@ IMPORTANT:
     const completion = await openai.chat.completions.create({
       model: config.openai.model,
       messages: messagesWithFormatting,
-      temperature: 0.8,
+      temperature: 0.9, // Increased for more variety in meal suggestions
       max_tokens: maxTokens,
-      presence_penalty: 0.3,
-      frequency_penalty: 0.3,
+      presence_penalty: 0.5, // Increased to encourage new meal ideas
+      frequency_penalty: 0.5, // Increased to avoid repeating same meals
     });
 
     const aiResponse = completion.choices[0]?.message?.content || 'I apologize, I couldn\'t generate a response.';
-    const tokensUsed = completion.usage?.total_tokens || 0;
 
     // Save user message to database
     await saveConversationMessage({
@@ -332,18 +532,17 @@ IMPORTANT:
       historyLength: conversationContext.length,
     });
   } catch (error: any) {
-    console.error('OpenAI API error:', {
-      message: error.message,
-      status: error.status,
-      type: error.type,
-      code: error.code,
-      response: error.response?.data || error.response,
+    logger.error('OpenAI API error', error, {
+      metadata: {
+        status: error.status,
+        type: error.type,
+        code: error.code,
+      },
     });
 
     // Fallback to simpler model if primary fails
     if (config.openai.fallbackModel) {
       try {
-        console.log(`Attempting fallback with model: ${config.openai.fallbackModel}`);
         const fallbackCompletion = await openai.chat.completions.create({
           model: config.openai.fallbackModel,
           messages: [
@@ -351,7 +550,7 @@ IMPORTANT:
             { role: 'user', content: message },
           ],
           temperature: 0.7,
-          max_tokens: 500,
+          max_tokens: 4096, // Maximum for GPT-3.5-turbo fallback
         });
 
         const fallbackResponse = fallbackCompletion.choices[0]?.message?.content;
@@ -381,7 +580,8 @@ IMPORTANT:
         });
         return;
       } catch (fallbackError) {
-        console.error('Fallback model error:', fallbackError);
+        logger.error('Fallback model error', fallbackError as Error);
+        throw new AppError('Both primary and fallback AI models failed', 500);
       }
     }
 
@@ -428,16 +628,37 @@ export const generateMealPlan = asyncHandler(async (req: AuthRequest, res: Respo
       if (households.length > 0) {
         householdData = {
           household: households[0],
-          members: members.map(m => ({
-            ...m,
-            dietary_restrictions: JSON.parse(m.dietary_restrictions || '[]'),
-            preferences: JSON.parse(m.preferences || '{}'),
-          })),
+          members: members.map(m => {
+            let dietaryRestrictions = [];
+            let preferences = {};
+
+            try {
+              dietaryRestrictions = m.dietary_restrictions ? JSON.parse(m.dietary_restrictions) : [];
+            } catch (e) {
+              logger.warn('Invalid JSON in dietary_restrictions', {
+                metadata: { value: m.dietary_restrictions },
+              });
+            }
+
+            try {
+              preferences = m.preferences ? JSON.parse(m.preferences) : {};
+            } catch (e) {
+              logger.warn('Invalid JSON in preferences', {
+                metadata: { value: m.preferences },
+              });
+            }
+
+            return {
+              ...m,
+              dietary_restrictions: dietaryRestrictions,
+              preferences: preferences,
+            };
+          }),
           preferences,
         };
       }
     } catch (error) {
-      console.error('Error fetching household data:', error);
+      logger.error('Error fetching household data', error as Error);
     }
   }
 
@@ -497,7 +718,7 @@ Weekly Budget: $${householdData.household.budget_weekly || budget}
   const finalBudget = householdData?.household?.budget_weekly || budget;
   const finalHouseholdSize = householdData?.members?.length || householdSize;
 
-  const prompt = `Generate a ${days}-day meal plan for ${finalHouseholdSize} people with a weekly budget of $${finalBudget}.
+  const prompt = `🚨 CRITICAL: You MUST generate a COMPLETE ${days}-day meal plan for ${finalHouseholdSize} people with a weekly budget of $${finalBudget}.
 
 ${householdContext}
 
@@ -505,9 +726,15 @@ ${!householdContext ? `Requirements:
 - Dietary restrictions: ${dietaryRestrictions.length > 0 ? dietaryRestrictions.join(', ') : 'None'}
 - Cuisine preferences: ${cuisinePreferences.length > 0 ? cuisinePreferences.join(', ') : 'Any'}` : ''}
 
-REQUIREMENTS:
-- Include breakfast, lunch, and dinner for each day
-- Provide ingredient lists
+🚨 MANDATORY REQUIREMENTS - DO NOT SKIP ANY:
+- YOU MUST PROVIDE EXACTLY ${days} DAYS (Monday through Sunday)
+- EACH DAY MUST HAVE ALL 3 MEALS: breakfast, lunch, AND dinner
+- TOTAL MEALS REQUIRED: ${days * 3} meals (${days} days × 3 meals per day)
+- DO NOT provide partial days or skip any meal slots
+- DO NOT stop generating before completing all ${days} days
+
+ADDITIONAL REQUIREMENTS:
+- Provide ingredient lists for every meal
 - Include estimated cost per meal
 - Ensure nutritional balance
 - STRICTLY AVOID all listed allergies
@@ -572,8 +799,10 @@ Format the response as a structured JSON object with the following structure:
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: prompt },
       ],
-      temperature: 0.7,
-      max_tokens: 2500,
+      temperature: 0.9, // Increased for more variety and creativity
+      max_tokens: 4096, // Maximum for GPT-4 Turbo - ensures full 7-day plan
+      presence_penalty: 0.5, // Encourage discussing new topics (meals)
+      frequency_penalty: 0.5, // Discourage repeating same meals
       response_format: { type: 'json_object' },
     });
 
@@ -636,7 +865,7 @@ Format the response as a structured JSON object with the following structure:
           message: `Meal plan generated and saved successfully with ${savedMeals.length} recipes`
         });
       } catch (dbError) {
-        console.error('Database save error:', dbError);
+        logger.error('Database save error', dbError as Error);
         // Return generated plan even if save fails
         return res.json({
           success: true,
@@ -649,13 +878,13 @@ Format the response as a structured JSON object with the following structure:
       }
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: mealPlanData,
       usage: completion.usage,
     });
   } catch (error: any) {
-    console.error('Meal plan generation error:', error);
+    logger.error('Meal plan generation error', error);
     throw new AppError('Failed to generate meal plan', 500);
   }
 });
