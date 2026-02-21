@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 export interface AIGeneratedMeal {
   name: string;
@@ -103,7 +104,7 @@ export async function saveAIGeneratedRecipe(
 
     return recipeId;
   } catch (error) {
-    console.error('Error saving AI-generated recipe:', error);
+    logger.error('Error saving AI-generated recipe:', error);
     throw error;
   }
 }
@@ -154,7 +155,7 @@ export async function getOrCreateIngredient(
 export async function saveMealPlanWithRecipes(
   mealPlanData: any,
   mealPlanId: string,
-  householdId: string,
+  _householdId: string,
   createdBy: string,
   weekStart: Date,
   householdSize: number
@@ -231,7 +232,7 @@ export async function saveMealPlanWithRecipes(
             date: dateString,
           });
         } catch (error) {
-          console.error(`Error saving meal ${meal.name}:`, error);
+          logger.error(`Error saving meal ${meal.name}:`, error);
           // Continue with other meals even if one fails
         }
       }

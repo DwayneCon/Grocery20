@@ -65,7 +65,7 @@ export const markRead = asyncHandler(async (req: AuthRequest, res: Response) => 
     throw new AppError('Notification id is required', 400);
   }
 
-  await markNotificationRead(userId, id);
+  await markNotificationRead(String(userId), String(id));
 
   res.json({
     success: true,
@@ -106,7 +106,7 @@ export const dismiss = asyncHandler(async (req: AuthRequest, res: Response) => {
     throw new AppError('Notification id is required', 400);
   }
 
-  await dismissNotification(userId, id);
+  await dismissNotification(String(userId), String(id));
 
   res.json({
     success: true,

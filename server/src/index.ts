@@ -168,6 +168,49 @@ const startServer = async () => {
   }
 };
 
+// Graceful shutdown handler
+const gracefulShutdown = (signal: string) => {
+  logger.info(`Received ${signal}. Starting graceful shutdown...`);
+
+  httpServer.close(() => {
+    logger.info('HTTP server closed');
+
+    // Close database pool
+    pool.end()
+      .then(() => {
+        logger.info('Database pool closed');
+        process.exit(0);
+      })
+      .catch((err) => {
+        logger.error('Error closing database pool', err);
+        process.exit(1);
+      });
+  });
+
+  // Close Socket.IO connections
+  io.close(() => {
+    logger.info('Socket.IO connections closed');
+  });
+
+  // Force shutdown after 10 seconds if graceful shutdown stalls
+  setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 10000).unref();
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+process.on('unhandledRejection', (reason: unknown) => {
+  logger.error('Unhandled Promise Rejection', reason instanceof Error ? reason : new Error(String(reason)));
+});
+
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught Exception', error);
+  process.exit(1);
+});
+
 if (config.nodeEnv !== 'test') {
   startServer();
 }

@@ -16,6 +16,7 @@ import {
 import { Star, StarBorder, Close } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import recipeService, { RecipeRating } from '../../services/recipeService';
+import { logger } from '../../utils/logger';
 
 interface RateRecipeDialogProps {
   open: boolean;
@@ -54,7 +55,7 @@ const RateRecipeDialog = ({ open, onClose, recipeId, recipeName, onRatingSubmitt
         setReview('');
       }
     } catch (err) {
-      console.error('Error loading existing rating:', err);
+      logger.error('Error loading existing rating', err instanceof Error ? err : undefined);
     } finally {
       setLoadingExisting(false);
     }
@@ -83,7 +84,7 @@ const RateRecipeDialog = ({ open, onClose, recipeId, recipeName, onRatingSubmitt
       // Close dialog
       onClose();
     } catch (err: any) {
-      console.error('Error submitting rating:', err);
+      logger.error('Error submitting rating', err instanceof Error ? err : undefined);
       setError(err.response?.data?.message || 'Failed to submit rating');
     } finally {
       setLoading(false);
@@ -110,7 +111,7 @@ const RateRecipeDialog = ({ open, onClose, recipeId, recipeName, onRatingSubmitt
       // Close dialog
       onClose();
     } catch (err: any) {
-      console.error('Error deleting rating:', err);
+      logger.error('Error deleting rating', err instanceof Error ? err : undefined);
       setError(err.response?.data?.message || 'Failed to delete rating');
     } finally {
       setLoading(false);

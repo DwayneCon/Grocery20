@@ -3,6 +3,7 @@ import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 import { config } from '../config/env.js';
+import { logger } from '../utils/logger.js';
 
 // Resolve the templates directory relative to the project root.
 // Uses process.cwd() as a stable base, avoiding import.meta.url
@@ -29,11 +30,10 @@ class EmailService {
       SMTP_PORT,
       SMTP_USER,
       SMTP_PASS,
-      EMAIL_FROM,
     } = process.env;
 
     if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
-      console.warn('⚠️ Email service not configured. Set SMTP environment variables.');
+      logger.warn('Email service not configured. Set SMTP environment variables.');
       return;
     }
 
@@ -50,9 +50,9 @@ class EmailService {
     // Verify connection
     this.transporter.verify((error) => {
       if (error) {
-        console.error('❌ Email service connection failed:', error);
+        logger.error('Email service connection failed:', error);
       } else {
-        console.log('✅ Email service ready');
+        logger.info('Email service ready');
       }
     });
   }
@@ -82,7 +82,7 @@ class EmailService {
    */
   public async send(options: EmailOptions): Promise<boolean> {
     if (!this.transporter) {
-      console.warn('Email service not available. Skipping email send.');
+      logger.warn('Email service not available. Skipping email send.');
       return false;
     }
 
@@ -96,10 +96,10 @@ class EmailService {
         html,
       });
 
-      console.log(`✅ Email sent: ${options.template} to ${options.to}`);
+      logger.info(`Email sent: ${options.template} to ${options.to}`);
       return true;
     } catch (error) {
-      console.error('❌ Failed to send email:', error);
+      logger.error('Failed to send email:', error);
       return false;
     }
   }
@@ -197,10 +197,10 @@ class EmailService {
     // - Day 7: Weekly Summary email
 
     // For now, log the schedule
-    console.log(`📅 Onboarding sequence scheduled for ${userEmail}`);
-    console.log('  - Day 0: Welcome email ✅ (sent)');
-    console.log('  - Day 3: Tips & tricks email ⏰');
-    console.log('  - Day 7: Weekly summary invite ⏰');
+    logger.info(`Onboarding sequence scheduled for ${userEmail}`);
+    logger.info('  - Day 0: Welcome email (sent)');
+    logger.info('  - Day 3: Tips & tricks email (scheduled)');
+    logger.info('  - Day 7: Weekly summary invite (scheduled)');
   }
 }
 

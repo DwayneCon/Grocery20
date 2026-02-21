@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface Store {
   id: string;
@@ -56,7 +41,7 @@ export interface StoreTotals {
 export const storeService = {
   // Get available stores
   getStores: async (): Promise<{ success: boolean; data: Store[] }> => {
-    const response = await api.get('/stores');
+    const response = await apiClient.get('/stores');
     return response.data;
   },
 
@@ -67,7 +52,7 @@ export const storeService = {
     count: number;
     message?: string;
   }> => {
-    const response = await api.get('/stores/search', {
+    const response = await apiClient.get('/stores/search', {
       params: { query, storeId },
     });
     return response.data;
@@ -82,7 +67,7 @@ export const storeService = {
       bestPrice: ProductPrice | null;
     };
   }> => {
-    const response = await api.get(`/stores/prices/${ingredientId}`);
+    const response = await apiClient.get(`/stores/prices/${ingredientId}`);
     return response.data;
   },
 
@@ -93,7 +78,7 @@ export const storeService = {
     count: number;
     message?: string;
   }> => {
-    const response = await api.get(`/stores/${storeId}/deals`);
+    const response = await apiClient.get(`/stores/${storeId}/deals`);
     return response.data;
   },
 
@@ -112,7 +97,7 @@ export const storeService = {
       potentialSavings: number;
     };
   }> => {
-    const response = await api.post('/stores/compare-prices', { items });
+    const response = await apiClient.post('/stores/compare-prices', { items });
     return response.data;
   },
 
@@ -129,7 +114,16 @@ export const storeService = {
     salePrice?: number;
     url?: string;
   }): Promise<{ success: boolean; message: string; productId: string }> => {
-    const response = await api.post('/stores/products', data);
+    const response = await apiClient.post('/stores/products', data);
+    return response.data;
+  },
+
+  // Live price comparison using Kroger API + scraped data
+  compareLivePrices: async (
+    items: Array<{ name: string; quantity: number; unit?: string }>,
+    locationId?: string
+  ) => {
+    const response = await apiClient.post('/stores/compare-live', { items, locationId });
     return response.data;
   },
 };

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import apiClient from '../utils/apiClient';
+import { logger } from '../utils/logger';
 
 export function useTTS() {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -41,7 +42,7 @@ export function useTTS() {
       await audio.play();
     } catch (err) {
       setIsSpeaking(false);
-      console.error('TTS failed:', err);
+      logger.error('TTS failed', err instanceof Error ? err : undefined);
     }
   }, []);
 

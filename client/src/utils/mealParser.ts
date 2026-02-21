@@ -27,13 +27,31 @@ export interface ParsedMealPlan {
 }
 
 /**
+ * Strip markdown syntax from text while preserving readable content.
+ * Removes: ---, ##, **, *, >, etc.
+ */
+function cleanMarkdown(text: string): string {
+  return text
+    .replace(/^---+\s*/gm, '')           // Horizontal rules
+    .replace(/^#{1,6}\s*/gm, '')          // Headers (## , ### , etc.)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')    // Bold **text** -> text
+    .replace(/\*([^*]+)\*/g, '$1')        // Italic *text* -> text
+    .replace(/^>\s*/gm, '')               // Blockquotes
+    .replace(/`([^`]+)`/g, '$1')          // Inline code
+    .replace(/\n{3,}/g, '\n\n')           // Collapse excess newlines
+    .trim();
+}
+
+// Day names for context tracking
+const DAY_NAMES = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'];
+
+/**
  * Parse AI response text to extract structured meal data
  */
 export function parseMealPlan(text: string): ParsedMealPlan {
   const lines = text.split('\n');
   const meals: ParsedMeal[] = [];
-  let introText = '';
-  let closingText = '';
   let budgetInfo = '';
   let currentMeal: ParsedMeal | null = null;
   let currentSection: 'ingredients' | 'instructions' | 'tips' | null = null;
@@ -41,6 +59,10 @@ export function parseMealPlan(text: string): ParsedMealPlan {
   let introLines: string[] = [];
   let closingLines: string[] = [];
   let captureClosing = false;
+
+  // Track current day and meal type across lines for context
+  let currentDay = '';
+  let currentMealType = '';
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -51,116 +73,162 @@ export function parseMealPlan(text: string): ParsedMealPlan {
       continue;
     }
 
-    // Detect budget information
-    if (line.includes('Budget') || line.includes('💰')) {
-      budgetInfo += line + '\n';
+    // Skip pure markdown formatting lines (---, ===, etc.)
+    if (/^[-=]{3,}$/.test(line)) {
       continue;
     }
 
-    // Detect meal header patterns
-    // Pattern 1: "Breakfast:", "Lunch:", "Dinner:" (standalone)
-    const mealTypeHeaderMatch = line.match(/^(Breakfast|Lunch|Dinner|Snack):\s*$/i);
-
-    // Pattern 2: "Monday: Italian Night" or "Tuesday: Taco Tuesday"
-    const dayThemeMatch = line.match(/^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday):\s*(.+)$/i);
-
-    // Pattern 3: "## Recipe Name" or "# Recipe Name"
-    const recipeHeaderMatch = line.match(/^#{1,3}\s+(.+)$/);
-
-    // Check if this is a section header (not a meal name)
-    const isSectionHeader = /^(\*\*)?(Ingredients|Instructions|Pro Tips?|Storage|Nutrition)(\*\*)?:/i.test(line);
-    const isCategoryHeader = /^\*\*(Breakfast|Lunch|Dinner|Snack)\*\*$/i.test(line);
-
-    // STRICT: Only treat as meal name if it has an EMOJI at the start
-    // This prevents section headers like "**Ingredients:**" from being treated as meals
-    const emojiMealMatch = line.match(/^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳🥓🍗🍖🥩🍤🦐🦞🦀🐟🥚🧀🥐🥖🥨🥯🥞🧇🥓🍳]+)\s+(.+)$/);
-
-    const possibleMealName = emojiMealMatch;
-
-    // Handle meal type headers (like "Breakfast:" or "Lunch:" or "**Breakfast**")
-    if (mealTypeHeaderMatch || isCategoryHeader) {
-      // This is just a category header, not a meal itself
-      const nextMealType = mealTypeHeaderMatch ? mealTypeHeaderMatch[1] : line.match(/^\*\*(Breakfast|Lunch|Dinner|Snack)\*\*$/i)?.[1];
-      // Store for next meal and skip this line
+    // Detect budget / cost-per-serving information
+    if (line.includes('Budget') || line.includes('💰') || /Cost per serving/i.test(line) || /💲/.test(line)) {
+      budgetInfo += line.replace(/^\*\*|\*\*$/g, '').replace(/^#+\s*/, '') + '\n';
       continue;
     }
 
-    // Detect start of a meal section
-    if (possibleMealName || dayThemeMatch) {
-      // Save previous meal if exists
+    // --- Day detection ---
+    // Pattern: "## **Monday**", "## Monday", "### Monday", "**Monday**", "Monday:"
+    const dayHeaderMatch = line.match(
+      /^(?:#{1,3}\s*)?(?:\*\*)?(?:Day \d+:\s*)?(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?:\*\*)?(?:\s*[-:]\s*(.*))?$/i
+    );
+    if (dayHeaderMatch) {
+      currentDay = dayHeaderMatch[1].charAt(0).toUpperCase() + dayHeaderMatch[1].slice(1).toLowerCase();
+      currentMealType = ''; // Reset meal type for new day
+      // If there's a theme after the day name (e.g., "Monday - Italian Night"), skip it
+      continue;
+    }
+
+    // --- Meal type detection ---
+    // Pattern: "### **Breakfast**", "### Breakfast", "**Breakfast**", "Breakfast:", "**Breakfast:**"
+    const mealTypeMatch = line.match(
+      /^(?:#{1,3}\s*)?(?:\*\*)?(Breakfast|Lunch|Dinner|Snack)(?:\*\*)?:?\s*$/i
+    );
+    if (mealTypeMatch) {
+      currentMealType = mealTypeMatch[1].toLowerCase();
+      continue;
+    }
+
+    // --- Emoji meal name detection ---
+    // This is the primary way we identify a new meal: an emoji followed by the meal name
+    const emojiMealMatch = line.match(
+      /^([🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳🥓🍗🍖🥩🍤🦐🦞🦀🐟🥚🧀🥐🥖🥨🥯🥞🧇🥣🌯🫔🥧🍰🧁🥗🫕🍿🥜🫘🥕🥦🥒🌽🫑🧄🧅🍄🥑🫛]+)\s+(.+)$/
+    );
+
+    if (emojiMealMatch) {
+      // Save previous meal
       if (currentMeal && currentMeal.name) {
         meals.push(currentMeal);
-        captureClosing = true; // Start capturing closing text after first meal found
+        captureClosing = true;
       }
 
       inMealBlock = true;
       currentSection = null;
 
-      // Extract meal name from emoji match
-      let mealName = '';
-      let emoji = '';
-      let dayName = '';
+      const emoji = emojiMealMatch[1];
+      const mealName = emojiMealMatch[2].replace(/^\*\*|\*\*$/g, '').replace(/\*\*/g, '');
 
-      if (dayThemeMatch) {
-        // "Monday: Italian Night" format
-        dayName = dayThemeMatch[1];
-        // Don't use the theme as the meal name, let the next line with emoji be the name
-        continue;
+      // If we don't have a current meal type, look back up to 5 lines for context
+      if (!currentMealType) {
+        for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
+          const prevLine = lines[j].trim().toLowerCase();
+          for (const mt of MEAL_TYPES) {
+            if (prevLine.includes(mt)) {
+              currentMealType = mt;
+              break;
+            }
+          }
+          if (currentMealType) break;
+        }
       }
 
-      if (emojiMealMatch) {
-        emoji = emojiMealMatch[1];
-        mealName = emojiMealMatch[2].replace(/^\*\*|\*\*$/g, ''); // Remove bold markers if present
-      } else {
-        // No emoji found, skip this line
-        continue;
+      // If we don't have a current day, look back up to 10 lines for context
+      if (!currentDay) {
+        for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
+          const prevLine = lines[j].trim().toLowerCase();
+          for (const dn of DAY_NAMES) {
+            if (prevLine.includes(dn)) {
+              currentDay = dn.charAt(0).toUpperCase() + dn.slice(1);
+              break;
+            }
+          }
+          if (currentDay) break;
+        }
       }
-
-      // Look ahead to next line to determine meal type from context
-      const lookAheadContext = lines[i - 1]?.toLowerCase() || '';
-      let mealType = '';
-      if (lookAheadContext.includes('breakfast')) mealType = 'breakfast';
-      else if (lookAheadContext.includes('lunch')) mealType = 'lunch';
-      else if (lookAheadContext.includes('dinner')) mealType = 'dinner';
 
       currentMeal = {
         name: mealName,
         emoji: emoji || '🍽️',
-        day: dayName || undefined,
-        mealType: mealType || undefined,
+        day: currentDay || undefined,
+        mealType: currentMealType || undefined,
       };
 
       continue;
     }
 
-    // If we haven't started a meal block yet, it's intro text
-    if (!inMealBlock) {
-      introLines.push(line);
+    // --- Also detect "**Meal Name**" style without emoji (bold-only meal names) ---
+    // Only if we already have a meal type context set (prevents false positives)
+    const boldMealMatch: RegExpMatchArray | null = (currentMealType && !currentMeal) ? line.match(/^\*\*([^*]+)\*\*$/) : null;
+    if (boldMealMatch && !isSectionHeaderLine(line)) {
+      if (currentMeal && currentMeal.name) {
+        meals.push(currentMeal);
+        captureClosing = true;
+      }
+
+      inMealBlock = true;
+      currentSection = null;
+
+      currentMeal = {
+        name: boldMealMatch[1],
+        emoji: getMealTypeEmoji(currentMealType),
+        day: currentDay || undefined,
+        mealType: currentMealType || undefined,
+      };
+
       continue;
     }
 
-    // Parse meal details
+    // If we haven't started any meal block yet, capture as intro text
+    if (!inMealBlock) {
+      // Filter out markdown-only lines from intro
+      if (!isMarkdownOnlyLine(line)) {
+        introLines.push(line);
+      }
+      continue;
+    }
+
+    // --- Parse meal details ---
     if (currentMeal) {
-      // Time indicators
-      const timeMatch = line.match(/⏱️\s*Prep:\s*([^|]+)\s*\|\s*Cook:\s*(.+)/i) ||
-                       line.match(/Prep:\s*([^|]+)\s*\|\s*Cook:\s*(.+)/i) ||
-                       line.match(/Time:\s*([^|]+)\s*\|\s*(.+)/i);
+      // Time indicators (various formats)
+      const timeMatch = line.match(/⏱️?\s*Prep:\s*([^|,]+)\s*[|,]\s*Cook:\s*(.+)/i) ||
+                       line.match(/Prep:\s*([^|,]+)\s*[|,]\s*Cook:\s*(.+)/i) ||
+                       line.match(/Time:\s*([^|,]+)\s*[|,]\s*(.+)/i);
       if (timeMatch) {
-        currentMeal.prepTime = timeMatch[1].trim();
-        currentMeal.cookTime = timeMatch[2].trim();
+        currentMeal.prepTime = timeMatch[1].trim().replace(/\*\*/g, '');
+        currentMeal.cookTime = timeMatch[2].trim().replace(/\*\*/g, '');
+        continue;
+      }
+
+      // Separate prep/cook time lines
+      const prepOnlyMatch = line.match(/⏱️?\s*Prep(?:\s*(?:time|Time))?:\s*(.+)/i);
+      if (prepOnlyMatch && !currentMeal.prepTime) {
+        currentMeal.prepTime = prepOnlyMatch[1].trim().replace(/\*\*/g, '');
+        continue;
+      }
+
+      const cookOnlyMatch = line.match(/🔥?\s*Cook(?:\s*(?:time|Time))?:\s*(.+)/i);
+      if (cookOnlyMatch && !currentMeal.cookTime) {
+        currentMeal.cookTime = cookOnlyMatch[1].trim().replace(/\*\*/g, '');
         continue;
       }
 
       // Cost
-      const costMatch = line.match(/💰\s*Cost.*?[:~]\s*\$?([0-9.]+)/i) ||
-                       line.match(/Cost.*?[:~]\s*\$?([0-9.]+)/i);
+      const costMatch = line.match(/[💰💲$]?\s*Cost.*?[:~]\s*[~$]?\s*\$?([0-9.]+)/i) ||
+                       line.match(/Cost per serving.*?[:~]\s*[~$]?\s*\$?([0-9.]+)/i);
       if (costMatch) {
         currentMeal.cost = costMatch[1];
         continue;
       }
 
       // Servings
-      const servingsMatch = line.match(/Serves?:\s*(\d+)/i);
+      const servingsMatch = line.match(/Serves?:?\s*(\d+)/i);
       if (servingsMatch) {
         currentMeal.servings = servingsMatch[1];
         continue;
@@ -174,27 +242,20 @@ export function parseMealPlan(text: string): ParsedMealPlan {
       }
 
       // Why it works
-      const whyMatch = line.match(/✨\s*Why.*?:\s*(.+)/i) ||
-                      line.match(/Why.*?:\s*(.+)/i);
-      if (whyMatch) {
-        currentMeal.whyItWorks = whyMatch[1];
+      const whyMatch = line.match(/[✨⭐]?\s*Why.*?:\s*(.+)/i);
+      if (whyMatch && !line.match(/^(Ingredients|Instructions|Pro Tips?|Storage|Nutrition)/i)) {
+        currentMeal.whyItWorks = whyMatch[1].replace(/\*\*/g, '');
         continue;
       }
 
-      // Description (first non-structured line after meal name)
-      if (!currentMeal.description && !currentSection && !line.startsWith('**') && !line.match(/^[🍽️💰⏱️✨📦💡#]/)) {
-        currentMeal.description = line;
-        continue;
-      }
-
-      // Section headers (more flexible matching)
+      // Section headers
       if (line.match(/^(#{2,3}\s*)?(\*\*)?Ingredients(\*\*)?:?/i)) {
         currentSection = 'ingredients';
         currentMeal.ingredients = [];
         continue;
       }
 
-      if (line.match(/^(#{2,3}\s*)?(\*\*)?Instructions(\*\*)?:?/i)) {
+      if (line.match(/^(#{2,3}\s*)?(\*\*)?Instructions(\*\*)?:?/i) || line.match(/^(#{2,3}\s*)?(\*\*)?Directions(\*\*)?:?/i)) {
         currentSection = 'instructions';
         currentMeal.instructions = [];
         continue;
@@ -209,36 +270,44 @@ export function parseMealPlan(text: string): ParsedMealPlan {
       if (line.match(/^(📦\s*)?(\*\*)?Storage(\*\*)?:?/i)) {
         const storageContent = line.replace(/^(📦\s*)?(\*\*)?Storage(\*\*)?:?\s*/i, '');
         if (storageContent) {
-          currentMeal.storage = storageContent;
+          currentMeal.storage = storageContent.replace(/\*\*/g, '');
         }
         continue;
       }
 
       // Nutrition info
       if (line.match(/Nutrition/i) || line.match(/Calories/i)) {
-        currentMeal.nutrition = line;
+        currentMeal.nutrition = line.replace(/\*\*/g, '');
         continue;
       }
 
-      // Parse section content
+      // Parse section content (list items)
       if (currentSection === 'ingredients' && (line.startsWith('-') || line.startsWith('•') || line.match(/^\d+\.?\s/))) {
-        currentMeal.ingredients?.push(line.replace(/^[-•]\s*/, '').replace(/^\d+\.?\s*/, ''));
+        currentMeal.ingredients?.push(line.replace(/^[-•]\s*/, '').replace(/^\d+\.?\s*/, '').replace(/\*\*/g, ''));
         continue;
       }
 
       if (currentSection === 'instructions' && (line.startsWith('-') || line.match(/^\d+\.?\s/))) {
-        currentMeal.instructions?.push(line.replace(/^[-•]\s*/, '').replace(/^\d+\.?\s*/, '').replace(/^\*\*(.+)\*\*:?\s*/, '$1: '));
+        currentMeal.instructions?.push(
+          line.replace(/^[-•]\s*/, '').replace(/^\d+\.?\s*/, '').replace(/^\*\*(.+)\*\*:?\s*/, '$1: ')
+        );
         continue;
       }
 
       if (currentSection === 'tips' && (line.startsWith('-') || line.startsWith('•'))) {
-        currentMeal.proTips?.push(line.replace(/^[-•]\s*/, ''));
+        currentMeal.proTips?.push(line.replace(/^[-•]\s*/, '').replace(/\*\*/g, ''));
+        continue;
+      }
+
+      // Description (first non-structured line after meal name that isn't a section header)
+      if (!currentMeal.description && !currentSection && !isSectionHeaderLine(line) && !isMarkdownOnlyLine(line)) {
+        currentMeal.description = line.replace(/\*\*/g, '').replace(/^[:#>]+\s*/, '');
         continue;
       }
     }
 
-    // Capture closing text after meals
-    if (captureClosing && !line.match(/^[🍽️💰⏱️✨📦💡#]/) && !line.startsWith('-') && !line.match(/^\d+\./)) {
+    // Capture closing text after all meals
+    if (captureClosing && !isSectionHeaderLine(line) && !line.startsWith('-') && !line.match(/^\d+\./) && !isMarkdownOnlyLine(line)) {
       closingLines.push(line);
     }
   }
@@ -248,16 +317,57 @@ export function parseMealPlan(text: string): ParsedMealPlan {
     meals.push(currentMeal);
   }
 
-  introText = introLines.join('\n').trim();
-  closingText = closingLines.join('\n').trim();
+  // Clean up intro and closing text - strip remaining markdown
+  const introText = cleanMarkdown(introLines.join('\n'));
+  const closingText = cleanMarkdown(closingLines.join('\n'));
 
   return {
     hasMeals: meals.length > 0,
     introText: introText || undefined,
     meals,
     closingText: closingText || undefined,
-    budgetInfo: budgetInfo || undefined,
+    budgetInfo: budgetInfo ? cleanMarkdown(budgetInfo) : undefined,
   };
+}
+
+/**
+ * Check if a line is purely markdown formatting (no useful text content)
+ */
+function isMarkdownOnlyLine(line: string): boolean {
+  const stripped = line
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/^[-=]{3,}$/, '')
+    .replace(/^>\s*/, '')
+    .trim();
+
+  // If stripping markdown leaves nothing meaningful, it's markdown-only
+  if (!stripped) return true;
+
+  // If the remaining text is just a day name or meal type by itself, skip it
+  if (DAY_NAMES.includes(stripped.toLowerCase()) || MEAL_TYPES.includes(stripped.toLowerCase())) return true;
+
+  return false;
+}
+
+/**
+ * Check if line is a section header like **Ingredients:**, **Instructions:**, etc.
+ */
+function isSectionHeaderLine(line: string): boolean {
+  return /^(#{1,3}\s*)?(\*\*)?(Ingredients|Instructions|Directions|Pro Tips?|Storage|Nutrition|Calories)(\*\*)?:?/i.test(line);
+}
+
+/**
+ * Get a default emoji for a meal type
+ */
+function getMealTypeEmoji(mealType: string): string {
+  switch (mealType.toLowerCase()) {
+    case 'breakfast': return '🍳';
+    case 'lunch': return '🥗';
+    case 'dinner': return '🍽️';
+    case 'snack': return '🥜';
+    default: return '🍽️';
+  }
 }
 
 /**
@@ -265,11 +375,11 @@ export function parseMealPlan(text: string): ParsedMealPlan {
  */
 export function isMealPlan(text: string): boolean {
   // Must have meal emoji AND timing/cost info to be considered a meal plan
-  const hasMealEmoji = /[🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳]/.test(text);
+  const hasMealEmoji = /[🍽️🥘🍲🥗🍜🍝🥙🌮🍕🍔🥪🍛🍱🥟🍳🥣🌯🫔🥧]/.test(text);
   const hasTimingInfo = /Prep:\s*\d+/i.test(text) || /Cook:\s*\d+/i.test(text);
-  const hasCostInfo = /Cost.*\$\d/i.test(text) || /\$\d+\.\d+/.test(text);
+  const hasCostInfo = /Cost.*\$\d/i.test(text) || /\$\d+\.\d+/.test(text) || /Cost per serving/i.test(text);
   const hasIngredients = /Ingredients:/i.test(text);
-  const hasInstructions = /Instructions:/i.test(text);
+  const hasInstructions = /Instructions:/i.test(text) || /Directions:/i.test(text);
 
   // Strong indicators: emoji + (timing OR cost) + (ingredients OR instructions)
   if (hasMealEmoji && (hasTimingInfo || hasCostInfo) && (hasIngredients || hasInstructions)) {
@@ -285,8 +395,5 @@ export function isMealPlan(text: string): boolean {
     hasInstructions
   ];
 
-  const matchCount = indicators.filter(Boolean).length;
-
-  // Require at least 3 strong indicators to avoid false positives
-  return matchCount >= 3;
+  return indicators.filter(Boolean).length >= 3;
 }

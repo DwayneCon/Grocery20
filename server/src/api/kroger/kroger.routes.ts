@@ -7,6 +7,10 @@ import {
   getItemPrice,
   getBulkPrices,
   checkConfiguration,
+  initiateAuth,
+  handleCallback,
+  getCartStatus,
+  addToKrogerCart,
 } from './kroger.controller.js';
 
 const router = Router();
@@ -31,5 +35,13 @@ router.get('/price', getItemPrice);
 
 // Get bulk prices for shopping list
 router.post('/prices/bulk', getBulkPrices);
+
+// Kroger user OAuth2 flow
+router.get('/auth', initiateAuth);
+router.get('/callback', handleCallback);
+
+// Kroger cart operations
+router.get('/cart/status', getCartStatus);
+router.post('/cart/add', addToKrogerCart);
 
 export default router;

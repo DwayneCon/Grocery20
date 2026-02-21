@@ -4,6 +4,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Refresh } from '@mui/icons-material';
 import { useTheme } from '../../contexts/ThemeContext';
+import { logger } from '../../utils/logger';
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -73,7 +74,7 @@ const PullToRefresh: React.FC<PullToRefreshProps> = ({
       try {
         await onRefresh();
       } catch (error) {
-        console.error('Refresh error:', error);
+        logger.error('Refresh error', error instanceof Error ? error : undefined);
       } finally {
         setIsRefreshing(false);
         y.set(0); // Reset to top

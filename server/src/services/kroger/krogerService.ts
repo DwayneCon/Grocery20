@@ -364,6 +364,77 @@ class KrogerService {
   isConfigured(): boolean {
     return !!(this.clientId && this.clientSecret && this.clientId !== 'your-kroger-client-id');
   }
+
+  /**
+   * Get Kroger OAuth2 authorization URL for user-level access (cart operations)
+   */
+  getAuthorizationUrl(redirectUri: string, state: string): string {
+    const params = new URLSearchParams({
+      scope: 'cart.basic:write product.compact',
+      response_type: 'code',
+      client_id: this.clientId,
+      redirect_uri: redirectUri,
+      state,
+    });
+    return `https://api.kroger.com/v1/connect/oauth2/authorize?${params}`;
+  }
+
+  /**
+   * Exchange authorization code for user-level tokens
+   */
+  async exchangeCodeForToken(code: string, redirectUri: string): Promise<{
+    access_token: string; refresh_token: string; expires_in: number;
+  }> {
+    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const response = await axios.post(
+      'https://api.kroger.com/v1/connect/oauth2/token',
+      `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(redirectUri)}`,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${credentials}`,
+        },
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Refresh a user-level token
+   */
+  async refreshUserToken(refreshToken: string): Promise<{
+    access_token: string; refresh_token: string; expires_in: number;
+  }> {
+    const credentials = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const response = await axios.post(
+      'https://api.kroger.com/v1/connect/oauth2/token',
+      `grant_type=refresh_token&refresh_token=${refreshToken}`,
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Authorization: `Basic ${credentials}`,
+        },
+      }
+    );
+    return response.data;
+  }
+
+  /**
+   * Add items to a user's Kroger cart
+   */
+  async addToCart(userAccessToken: string, items: Array<{ upc: string; quantity: number }>): Promise<any> {
+    const response = await axios.put(
+      'https://api.kroger.com/v1/cart/add',
+      { items },
+      {
+        headers: {
+          Authorization: `Bearer ${userAccessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    return response.data;
+  }
 }
 
 export const krogerService = new KrogerService();

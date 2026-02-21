@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface Budget {
   id: string;
@@ -64,13 +49,13 @@ export interface BudgetStats {
 export const budgetService = {
   // Create or update budget
   createBudget: async (data: CreateBudgetData): Promise<{ success: boolean; message: string; budgetId: string }> => {
-    const response = await api.post('/budget', data);
+    const response = await apiClient.post('/budget', data);
     return response.data;
   },
 
   // Get all household budgets
   getHouseholdBudgets: async (householdId: string, limit = 10, offset = 0): Promise<{ success: boolean; data: Budget[] }> => {
-    const response = await api.get(`/budget/household/${householdId}`, {
+    const response = await apiClient.get(`/budget/household/${householdId}`, {
       params: { limit, offset },
     });
     return response.data;
@@ -78,13 +63,13 @@ export const budgetService = {
 
   // Get current week's budget
   getCurrentBudget: async (householdId: string): Promise<{ success: boolean; data: Budget | null; message?: string }> => {
-    const response = await api.get(`/budget/household/${householdId}/current`);
+    const response = await apiClient.get(`/budget/household/${householdId}/current`);
     return response.data;
   },
 
   // Get budget statistics
   getBudgetStats: async (householdId: string, months = 3): Promise<{ success: boolean; data: BudgetStats }> => {
-    const response = await api.get(`/budget/household/${householdId}/stats`, {
+    const response = await apiClient.get(`/budget/household/${householdId}/stats`, {
       params: { months },
     });
     return response.data;
@@ -92,13 +77,13 @@ export const budgetService = {
 
   // Update spending
   updateSpending: async (budgetId: string, data: UpdateSpendingData): Promise<{ success: boolean; message: string; data: Budget }> => {
-    const response = await api.patch(`/budget/${budgetId}/spending`, data);
+    const response = await apiClient.patch(`/budget/${budgetId}/spending`, data);
     return response.data;
   },
 
   // Delete budget
   deleteBudget: async (budgetId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/budget/${budgetId}`);
+    const response = await apiClient.delete(`/budget/${budgetId}`);
     return response.data;
   },
 };

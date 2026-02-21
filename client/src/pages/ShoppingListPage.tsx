@@ -40,7 +40,9 @@ import shoppingListService, { ShoppingList, ShoppingListItem } from '../services
 import { useSelector } from 'react-redux';
 import { RootState } from '../features/store';
 import PriceComparison from '../components/shopping/PriceComparison';
+import KrogerCartButton from '../components/shopping/KrogerCartButton';
 import VirtualList from '../components/common/VirtualList';
+import { logger } from '../utils/logger';
 
 const VIRTUAL_LIST_THRESHOLD = 50;
 const LIST_ITEM_HEIGHT = 72;
@@ -105,7 +107,7 @@ const ShoppingListPage = () => {
           navigate(location.pathname, { replace: true });
         })
         .catch((err) => {
-          console.error('Error adding ingredients:', err);
+          logger.error('Error adding ingredients', err instanceof Error ? err : undefined);
           setError('Failed to add some ingredients');
         });
     }
@@ -125,7 +127,7 @@ const ShoppingListPage = () => {
       const response = await shoppingListService.getShoppingLists(user.householdId);
 
       if (response.success) {
-        const activeLists = response.data.filter((list) => list.status === 'active');
+        const activeLists = response.data.filter((list) => list.status !== 'completed');
         setShoppingLists(activeLists);
 
         // Set current list to first active list if none selected
@@ -138,7 +140,7 @@ const ShoppingListPage = () => {
         }
       }
     } catch (err: any) {
-      console.error('Error loading shopping lists:', err);
+      logger.error('Error loading shopping lists', err instanceof Error ? err : undefined);
       setError(err.response?.data?.error || err.message || 'Failed to load shopping lists');
     } finally {
       setLoading(false);
@@ -600,6 +602,15 @@ const ShoppingListPage = () => {
             >
               New List
             </Button>
+            {currentList && currentList.items && currentList.items.length > 0 && (
+              <KrogerCartButton
+                items={currentList.items.map((item: ShoppingListItem) => ({
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                }))}
+              />
+            )}
           </Box>
         </GlassCard>
 
@@ -804,12 +815,7 @@ const ShoppingListPage = () => {
         ) : (
           /* Price Comparison Tab */
           <PriceComparison
-            items={currentList.items.map((item) => ({
-              name: item.name,
-              quantity: item.quantity,
-              unit: item.unit,
-              ingredientId: item.ingredientId,
-            }))}
+            items={currentList.items}
           />
         )}
 

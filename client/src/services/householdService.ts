@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface HouseholdMember {
   id: string;
@@ -59,31 +44,40 @@ export interface HouseholdSummary {
 export const householdService = {
   // Create household
   createHousehold: async (data: { name: string; budgetWeekly?: number }) => {
-    const response = await api.post('/households', data);
+    const response = await apiClient.post('/households', data);
     return response.data;
   },
 
   // Get household
   getHousehold: async (householdId: string) => {
-    const response = await api.get(`/households/${householdId}`);
+    const response = await apiClient.get(`/households/${householdId}`);
     return response.data;
   },
 
   // Update household
   updateHousehold: async (householdId: string, data: { name?: string; budgetWeekly?: number }) => {
-    const response = await api.put(`/households/${householdId}`, data);
+    const response = await apiClient.put(`/households/${householdId}`, data);
+    return response.data;
+  },
+
+  // Update zip code for store location
+  updateZipCode: async (householdId: string, zipCode: string, preferredStoreLocation?: string) => {
+    const response = await apiClient.put(`/households/${householdId}`, {
+      zipCode,
+      preferredStoreLocation,
+    });
     return response.data;
   },
 
   // Delete household
   deleteHousehold: async (householdId: string) => {
-    const response = await api.delete(`/households/${householdId}`);
+    const response = await apiClient.delete(`/households/${householdId}`);
     return response.data;
   },
 
   // Get household summary
   getHouseholdSummary: async (householdId: string): Promise<{ success: boolean; } & HouseholdSummary> => {
-    const response = await api.get(`/households/${householdId}/summary`);
+    const response = await apiClient.get(`/households/${householdId}/summary`);
     return response.data;
   },
 
@@ -97,13 +91,13 @@ export const householdService = {
       preferences?: any;
     }
   ) => {
-    const response = await api.post(`/households/${householdId}/members`, data);
+    const response = await apiClient.post(`/households/${householdId}/members`, data);
     return response.data;
   },
 
   // Get members
   getMembers: async (householdId: string) => {
-    const response = await api.get(`/households/${householdId}/members`);
+    const response = await apiClient.get(`/households/${householdId}/members`);
     return response.data;
   },
 
@@ -118,13 +112,13 @@ export const householdService = {
       preferences?: any;
     }
   ) => {
-    const response = await api.put(`/households/${householdId}/members/${memberId}`, data);
+    const response = await apiClient.put(`/households/${householdId}/members/${memberId}`, data);
     return response.data;
   },
 
   // Remove member
   removeMember: async (householdId: string, memberId: string) => {
-    const response = await api.delete(`/households/${householdId}/members/${memberId}`);
+    const response = await apiClient.delete(`/households/${householdId}/members/${memberId}`);
     return response.data;
   },
 
@@ -138,13 +132,13 @@ export const householdService = {
       severity?: number;
     }
   ) => {
-    const response = await api.post(`/households/${householdId}/preferences`, data);
+    const response = await apiClient.post(`/households/${householdId}/preferences`, data);
     return response.data;
   },
 
   // Remove preference
   removePreference: async (householdId: string, preferenceId: string) => {
-    const response = await api.delete(`/households/${householdId}/preferences/${preferenceId}`);
+    const response = await apiClient.delete(`/households/${householdId}/preferences/${preferenceId}`);
     return response.data;
   },
 };

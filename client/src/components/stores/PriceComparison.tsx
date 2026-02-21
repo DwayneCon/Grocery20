@@ -16,6 +16,7 @@ import { CompareArrows, Store, TrendingDown } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import storeService, { PriceComparison as PriceComparisonData, StoreTotals } from '../../services/storeService';
+import { logger } from '../../utils/logger';
 
 interface PriceComparisonProps {
   shoppingListId?: string;
@@ -48,7 +49,7 @@ const PriceComparison = ({ items }: PriceComparisonProps) => {
         setPotentialSavings(response.data.potentialSavings);
       }
     } catch (err) {
-      console.error('Error comparing prices:', err);
+      logger.error('Error comparing prices', err instanceof Error ? err : undefined);
       setError('Failed to compare prices');
     } finally {
       setLoading(false);

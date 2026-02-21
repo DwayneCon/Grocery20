@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface NutritionData {
   calories?: number;
@@ -59,7 +44,7 @@ export const nutritionService = {
       weeklyAverages: NutritionData;
     };
   }> => {
-    const response = await api.get(`/nutrition/meal-plan/${mealPlanId}`);
+    const response = await apiClient.get(`/nutrition/meal-plan/${mealPlanId}`);
     return response.data;
   },
 
@@ -68,9 +53,7 @@ export const nutritionService = {
     success: boolean;
     data: DailyNutrition;
   }> => {
-    const response = await api.get(`/nutrition/meal-plan/${mealPlanId}/day`, {
-      params: { date },
-    });
+    const response = await apiClient.get(`/nutrition/meal-plan/${mealPlanId}/day/${date}`);
     return response.data;
   },
 
@@ -82,7 +65,7 @@ export const nutritionService = {
       overallScore: number;
     };
   }> => {
-    const response = await api.post(`/nutrition/meal-plan/${mealPlanId}/compare`, { goals });
+    const response = await apiClient.post('/nutrition/compare-goals', { mealPlanId, goals });
     return response.data;
   },
 
@@ -93,7 +76,7 @@ export const nutritionService = {
       [mealType: string]: NutritionData;
     };
   }> => {
-    const response = await api.get(`/nutrition/meal-plan/${mealPlanId}/by-meal-type`);
+    const response = await apiClient.get(`/nutrition/meal-plan/${mealPlanId}/by-meal-type`);
     return response.data;
   },
 };

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import { RecentAchievement, achievementService } from '../../services/achievementService';
 import confetti from 'canvas-confetti';
+import { logger } from '../../utils/logger';
 
 const tierColors = {
   bronze: 'linear-gradient(135deg, #CD7F32 0%, #8B4513 100%)',
@@ -47,7 +48,7 @@ const AchievementNotification: React.FC = () => {
         setAchievements((prev) => [...prev, ...recent]);
       }
     } catch (error) {
-      console.error('Failed to check for new achievements:', error);
+      logger.error('Failed to check for new achievements', error instanceof Error ? error : undefined);
     }
   };
 

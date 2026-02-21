@@ -87,7 +87,7 @@ export const getLeaderboard = asyncHandler(async (req: AuthRequest, res: Respons
     throw new AppError('User not authenticated', 401);
   }
 
-  const leaderboard = await getHouseholdLeaderboard(householdId);
+  const leaderboard = await getHouseholdLeaderboard(String(householdId));
 
   res.json({
     householdId,

@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface InventoryItem {
   id: string;
@@ -51,7 +36,7 @@ export const inventoryService = {
     expirationDate?: string;
     location?: 'Fridge' | 'Pantry' | 'Freezer';
   }): Promise<{ success: boolean; message: string; itemId: string }> => {
-    const response = await api.post('/inventory', { householdId, ...data });
+    const response = await apiClient.post('/inventory', { householdId, ...data });
     return response.data;
   },
 
@@ -60,7 +45,7 @@ export const inventoryService = {
     success: boolean;
     data: InventoryItem[];
   }> => {
-    const response = await api.get(`/inventory/household/${householdId}`, {
+    const response = await apiClient.get(`/inventory/household/${householdId}`, {
       params: location ? { location } : undefined,
     });
     return response.data;
@@ -71,7 +56,7 @@ export const inventoryService = {
     success: boolean;
     data: InventoryItem[];
   }> => {
-    const response = await api.get(`/inventory/household/${householdId}/expiring-soon`, {
+    const response = await apiClient.get(`/inventory/household/${householdId}/expiring-soon`, {
       params: { days },
     });
     return response.data;
@@ -85,13 +70,13 @@ export const inventoryService = {
     location?: 'Fridge' | 'Pantry' | 'Freezer';
     status?: 'fresh' | 'expiring_soon' | 'expired';
   }): Promise<{ success: boolean; message: string }> => {
-    const response = await api.patch(`/inventory/${itemId}`, data);
+    const response = await apiClient.patch(`/inventory/${itemId}`, data);
     return response.data;
   },
 
   // Delete inventory item
   deleteItem: async (itemId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await api.delete(`/inventory/${itemId}`);
+    const response = await apiClient.delete(`/inventory/${itemId}`);
     return response.data;
   },
 
@@ -100,7 +85,7 @@ export const inventoryService = {
     success: boolean;
     data: InventoryStats;
   }> => {
-    const response = await api.get(`/inventory/household/${householdId}/stats`);
+    const response = await apiClient.get(`/inventory/household/${householdId}/stats`);
     return response.data;
   },
 
@@ -110,7 +95,7 @@ export const inventoryService = {
     message: string;
     markedCount: number;
   }> => {
-    const response = await api.patch(`/inventory/household/${householdId}/mark-expired`);
+    const response = await apiClient.post(`/inventory/household/${householdId}/mark-expired`);
     return response.data;
   },
 };

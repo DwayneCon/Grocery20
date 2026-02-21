@@ -5,9 +5,10 @@ import { motion } from 'framer-motion';
 
 interface QuickActionChipsProps {
   onActionClick: (action: string) => void;
+  contextualPrompts?: string[];
 }
 
-const QuickActionChips = ({ onActionClick }: QuickActionChipsProps) => {
+const QuickActionChips = ({ onActionClick, contextualPrompts }: QuickActionChipsProps) => {
   const quickActions = [
     {
       icon: <Restaurant />,
@@ -69,6 +70,36 @@ const QuickActionChips = ({ onActionClick }: QuickActionChipsProps) => {
               },
               '& .MuiChip-icon': {
                 color: '#4ECDC4',
+              },
+            }}
+          />
+        </motion.div>
+      ))}
+      {/* Contextual prompts from user data */}
+      {contextualPrompts?.map((prompt, index) => (
+        <motion.div
+          key={`ctx-${index}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: (quickActions.length + index) * 0.1 }}
+        >
+          <Chip
+            label={prompt.length > 40 ? prompt.substring(0, 40) + '...' : prompt}
+            onClick={() => onActionClick(prompt)}
+            sx={{
+              bgcolor: 'rgba(255, 107, 53, 0.1)',
+              backdropFilter: 'blur(10px)',
+              color: 'white',
+              border: '1px solid rgba(255, 107, 53, 0.3)',
+              fontSize: '0.85rem',
+              py: 2.5,
+              px: 1,
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              '&:hover': {
+                bgcolor: 'rgba(255, 107, 53, 0.25)',
+                border: '1px solid rgba(255, 107, 53, 0.5)',
+                transform: 'translateY(-2px)',
               },
             }}
           />

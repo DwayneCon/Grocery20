@@ -1,3 +1,5 @@
+import { logger } from './logger';
+
 export interface DecodedToken {
   id: string;
   email: string;
@@ -21,7 +23,7 @@ export const decodeToken = (token: string): DecodedToken | null => {
 
     return JSON.parse(jsonPayload);
   } catch (error) {
-    console.error('Error decoding token:', error);
+    logger.error('Error decoding token', error instanceof Error ? error : undefined);
     return null;
   }
 };

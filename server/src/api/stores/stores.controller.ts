@@ -3,12 +3,15 @@ import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
+import { krogerService } from '../../services/kroger/krogerService.js';
+import { RowDataPacket } from 'mysql2';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Get all available stores
  * GET /api/stores
  */
-export const getStores = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getStores = asyncHandler(async (_req: AuthRequest, res: Response) => {
   try {
     // For MVP, return a static list of supported stores
     // In production, this would come from a database or configuration
@@ -52,7 +55,7 @@ export const getStores = asyncHandler(async (req: AuthRequest, res: Response) =>
       data: stores,
     });
   } catch (error) {
-    console.error('Error getting stores:', error);
+    logger.error('Error getting stores:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get stores',
@@ -112,7 +115,7 @@ export const searchProducts = asyncHandler(async (req: AuthRequest, res: Respons
       message: products.length === 0 ? 'No products found. Price data will be available after scraping is implemented.' : undefined,
     });
   } catch (error) {
-    console.error('Error searching products:', error);
+    logger.error('Error searching products:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to search products',
@@ -172,7 +175,7 @@ export const getIngredientPrices = asyncHandler(async (req: AuthRequest, res: Re
       },
     });
   } catch (error) {
-    console.error('Error getting ingredient prices:', error);
+    logger.error('Error getting ingredient prices:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get ingredient prices',
@@ -217,7 +220,7 @@ export const getStoreDeals = asyncHandler(async (req: AuthRequest, res: Response
       message: deals.length === 0 ? 'No deals found. Scraping functionality coming soon!' : undefined,
     });
   } catch (error) {
-    console.error('Error getting store deals:', error);
+    logger.error('Error getting store deals:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get store deals',
@@ -232,12 +235,7 @@ export const getStoreDeals = asyncHandler(async (req: AuthRequest, res: Response
  */
 export const addStoreProduct = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { ingredientId, storeName, productName, brand, price, unit, quantity, onSale, salePrice, url } = req.body;
-  const userId = req.user!.id;
-
   try {
-    // Check if user is admin (for manual entries)
-    // In production, this would be restricted to admin users or automated scraping service
-
     // Check if product already exists
     const existing: any[] = await query(
       'SELECT id FROM store_products WHERE store_name = ? AND product_name = ? AND brand = ?',
@@ -272,7 +270,7 @@ export const addStoreProduct = asyncHandler(async (req: AuthRequest, res: Respon
       productId,
     });
   } catch (error) {
-    console.error('Error adding/updating store product:', error);
+    logger.error('Error adding/updating store product:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to add/update product',
@@ -365,11 +363,185 @@ export const comparePrices = asyncHandler(async (req: AuthRequest, res: Response
       },
     });
   } catch (error) {
-    console.error('Error comparing prices:', error);
+    logger.error('Error comparing prices:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to compare prices',
       error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
+});
+
+/**
+ * Compare prices using live Kroger API + scraped store data
+ * POST /api/stores/compare-live
+ */
+export const compareLivePrices = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { items, locationId } = req.body;
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Items array is required',
+    });
+  }
+
+  // 1. Get live Kroger prices
+  let krogerPrices: any[] = [];
+  let krogerSummary = { totalRegular: 0, totalPromo: 0, savings: 0, savingsPercent: 0 };
+
+  if (krogerService.isConfigured()) {
+    try {
+      const krogerItems = items.map((item: any) => ({
+        name: item.name,
+        quantity: item.quantity || 1,
+      }));
+      const krogerResults = await krogerService.getBulkPrices(krogerItems, locationId);
+      krogerPrices = krogerResults;
+
+      let totalRegular = 0;
+      let totalPromo = 0;
+      krogerResults.forEach((r: any) => {
+        totalRegular += r.totalRegular || 0;
+        totalPromo += r.totalPromo || r.totalRegular || 0;
+      });
+      krogerSummary = {
+        totalRegular,
+        totalPromo,
+        savings: totalRegular - totalPromo,
+        savingsPercent: totalRegular > 0 ? ((totalRegular - totalPromo) / totalRegular) * 100 : 0,
+      };
+    } catch (err) {
+      logger.error('Kroger live pricing failed:', err);
+    }
+  }
+
+  // 2. Get scraped store prices from store_products table
+  const scrapedStores: { [storeName: string]: { total: number; itemsFound: number; items: any[] } } = {};
+
+  for (const item of items) {
+    const rows = await query<RowDataPacket[]>(
+      `SELECT * FROM store_products
+       WHERE product_name LIKE ? AND store_name != 'Kroger'
+       ORDER BY COALESCE(sale_price, price) ASC`,
+      [`%${item.name}%`]
+    );
+
+    rows.forEach((row: any) => {
+      if (!scrapedStores[row.store_name]) {
+        scrapedStores[row.store_name] = { total: 0, itemsFound: 0, items: [] };
+      }
+      const effectivePrice = row.on_sale && row.sale_price ? row.sale_price : row.price;
+      const qty = item.quantity || 1;
+      scrapedStores[row.store_name].total += effectivePrice * qty;
+      scrapedStores[row.store_name].itemsFound++;
+      scrapedStores[row.store_name].items.push({
+        itemName: item.name,
+        productName: row.product_name,
+        brand: row.brand,
+        price: row.price,
+        salePrice: row.sale_price,
+        onSale: row.on_sale,
+        quantity: qty,
+        totalPrice: effectivePrice * qty,
+      });
+    });
+  }
+
+  // 3. Build unified response
+  const stores = [];
+
+  // Add Kroger
+  if (krogerPrices.length > 0) {
+    stores.push({
+      storeName: 'Kroger',
+      source: 'live_api',
+      totalRegular: krogerSummary.totalRegular,
+      totalWithDeals: krogerSummary.totalPromo,
+      savings: krogerSummary.savings,
+      savingsPercent: krogerSummary.savingsPercent,
+      itemsFound: krogerPrices.filter((p: any) => p.krogerData !== null).length,
+      itemsTotal: items.length,
+      items: krogerPrices.map((p: any) => ({
+        itemName: p.itemName,
+        productName: p.krogerData?.name || null,
+        brand: p.krogerData?.brand || null,
+        regularPrice: p.krogerData?.regularPrice || null,
+        promoPrice: p.krogerData?.promoPrice || null,
+        imageUrl: p.krogerData?.imageUrl || null,
+        quantity: p.quantity,
+        totalPrice: p.totalPromo || p.totalRegular,
+        found: p.krogerData !== null,
+      })),
+      lastUpdated: new Date().toISOString(),
+    });
+  }
+
+  // Add scraped stores
+  Object.entries(scrapedStores).forEach(([storeName, data]) => {
+    stores.push({
+      storeName,
+      source: 'scraped',
+      totalRegular: data.total,
+      totalWithDeals: data.total,
+      savings: 0,
+      savingsPercent: 0,
+      itemsFound: data.itemsFound,
+      itemsTotal: items.length,
+      items: data.items,
+      lastUpdated: null,
+    });
+  });
+
+  // Sort stores by totalWithDeals (cheapest first)
+  stores.sort((a, b) => a.totalWithDeals - b.totalWithDeals);
+
+  const bestStore = stores.length > 0 ? stores[0].storeName : null;
+  const potentialSavings = stores.length > 1
+    ? stores[stores.length - 1].totalWithDeals - stores[0].totalWithDeals
+    : 0;
+
+  return res.json({
+    success: true,
+    stores,
+    bestStore,
+    potentialSavings,
+    krogerConfigured: krogerService.isConfigured(),
+    itemsRequested: items.length,
+  });
+});
+
+/**
+ * Trigger a store scrape (admin endpoint)
+ * POST /api/stores/scrape/:storeName
+ */
+export const triggerScrape = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { storeName } = req.params;
+
+  let scraper: any;
+  switch (String(storeName).toLowerCase()) {
+    case 'walmart': {
+      const { WalmartScraper } = await import('../../services/scraper/walmartScraper.js');
+      scraper = new WalmartScraper();
+      break;
+    }
+    case 'aldi': {
+      const { AldiScraper } = await import('../../services/scraper/aldiScraper.js');
+      scraper = new AldiScraper();
+      break;
+    }
+    default:
+      return res.status(400).json({ success: false, message: `Unknown store: ${storeName}` });
+  }
+
+  const products = await scraper.scrape();
+  const saved = await scraper.saveProducts(products);
+
+  return res.json({
+    success: true,
+    store: storeName,
+    productsScraped: products.length,
+    productsSaved: saved,
+    timestamp: new Date().toISOString(),
+  });
 });

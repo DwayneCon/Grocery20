@@ -21,7 +21,8 @@ import { RootState } from '../features/store';
 import { parseMealPlan, isMealPlan, ParsedMeal } from '../utils/mealParser';
 import { logger } from '../utils/logger';
 import { generateChatWelcomeMessage, generateContextualPrompts } from '../utils/contextualMessages';
-import { createEmptyWeekPlan, DayName, calculateCompletion } from '../types/mealPlanCanvas';
+import { createEmptyWeekPlan, DayName, calculateCompletion, getDayName } from '../types/mealPlanCanvas';
+import { mealPlanService } from '../services/mealPlanService';
 
 interface Message {
   id: string;
@@ -66,6 +67,87 @@ const ChatPage = () => {
   const [weekPlan, setWeekPlan] = useState(createEmptyWeekPlan());
   const [canvasVisible, setCanvasVisible] = useState(!isMobile); // Default visible on desktop
   const [selectedDay, setSelectedDay] = useState<DayName | null>(null);
+
+  // Load saved meal plan into canvas on mount
+  useEffect(() => {
+    if (!householdId) return;
+
+    const loadSavedPlan = async () => {
+      try {
+        const response = await mealPlanService.getCurrentWeekPlan(householdId);
+        if (!response.success || !response.mealPlan?.meals?.length) return;
+
+        const savedMeals = response.mealPlan.meals;
+
+        setWeekPlan(prev => {
+          const updatedDays = [...prev.days];
+
+          savedMeals.forEach((meal: any) => {
+            const dateStr = typeof meal.meal_date === 'string'
+              ? meal.meal_date.split('T')[0]
+              : new Date(meal.meal_date).toISOString().split('T')[0];
+            const mealDate = new Date(dateStr + 'T12:00:00');
+            const dayName = getDayName(mealDate);
+
+            const dayIndex = updatedDays.findIndex(d => d.dayName === dayName);
+            if (dayIndex === -1) return;
+
+            const mealType = meal.meal_type?.toLowerCase();
+            const mealSlotIndex = updatedDays[dayIndex].meals.findIndex(
+              m => m.mealType === mealType
+            );
+            if (mealSlotIndex === -1) return;
+
+            // Parse notes JSON
+            let notes: any = {};
+            if (typeof meal.notes === 'string') {
+              try { notes = JSON.parse(meal.notes); } catch { notes = { name: meal.notes }; }
+            } else {
+              notes = meal.notes || {};
+            }
+
+            const parsedMeal: ParsedMeal = {
+              day: dayName,
+              mealType: mealType,
+              name: notes.name || meal.recipe_name || 'Unnamed Meal',
+              description: notes.description,
+              ingredients: notes.ingredients?.map((i: any) =>
+                typeof i === 'string' ? i : `${i.amount || ''} ${i.unit || ''} ${i.name || i}`.trim()
+              ),
+              instructions: notes.instructions,
+              prepTime: notes.prepTime ? `${notes.prepTime} min` : undefined,
+              cookTime: notes.cookTime ? `${notes.cookTime} min` : undefined,
+              difficulty: notes.difficulty,
+            };
+
+            updatedDays[dayIndex].meals[mealSlotIndex] = {
+              ...updatedDays[dayIndex].meals[mealSlotIndex],
+              meal: parsedMeal,
+              status: 'accepted',
+            };
+
+            // Update day status
+            const filledSlots = updatedDays[dayIndex].meals.filter(m => m.status !== 'empty').length;
+            if (filledSlots === updatedDays[dayIndex].meals.length) {
+              updatedDays[dayIndex].status = 'complete';
+            } else if (filledSlots > 0) {
+              updatedDays[dayIndex].status = 'partial';
+            }
+          });
+
+          return {
+            ...prev,
+            days: updatedDays,
+            completionPercentage: calculateCompletion(updatedDays),
+          };
+        });
+      } catch (err) {
+        logger.warn('Could not load saved meal plan for canvas', { metadata: { error: err } });
+      }
+    };
+
+    loadSavedPlan();
+  }, [householdId]);
 
   // Cooking mode state
   const [cookingModeActive, setCookingModeActive] = useState(false);
@@ -633,6 +715,10 @@ const ChatPage = () => {
                                       textTransform: 'none',
                                       borderRadius: 'var(--radius-full)',
                                       px: 2,
+                                      maxWidth: '280px',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
                                       transition: 'all 0.2s ease',
                                       '&:hover': {
                                         borderColor: 'var(--chef-orange)',
@@ -643,7 +729,7 @@ const ChatPage = () => {
                                     }}
                                     aria-label={`Start cooking ${meal.name}`}
                                   >
-                                    Cook: {meal.name.length > 25 ? meal.name.substring(0, 25) + '...' : meal.name}
+                                    Cook: {meal.name}
                                   </Button>
                                 ))}
                               </Box>

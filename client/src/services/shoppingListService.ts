@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add token interceptor
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 export interface ShoppingListItem {
   id: string;
@@ -34,7 +19,7 @@ export interface ShoppingList {
   householdId: string;
   name: string;
   description?: string;
-  status: 'active' | 'completed' | 'archived';
+  status: 'pending' | 'in_progress' | 'completed';
   items: ShoppingListItem[];
   createdAt: string;
   updatedAt: string;
@@ -47,7 +32,7 @@ export const shoppingListService = {
     message: string;
     shoppingList: ShoppingList;
   }> => {
-    const response = await api.post('/shopping/from-meal-plan', {
+    const response = await apiClient.post('/shopping/from-meal-plan', {
       mealPlanId,
       householdId,
     });
@@ -64,7 +49,7 @@ export const shoppingListService = {
     message: string;
     shoppingList: ShoppingList;
   }> => {
-    const response = await api.post('/shopping', data);
+    const response = await apiClient.post('/shopping', data);
     return response.data;
   },
 
@@ -73,7 +58,7 @@ export const shoppingListService = {
     success: boolean;
     data: ShoppingList[];
   }> => {
-    const response = await api.get(`/shopping/household/${householdId}`);
+    const response = await apiClient.get(`/shopping/household/${householdId}`);
     return response.data;
   },
 
@@ -82,7 +67,7 @@ export const shoppingListService = {
     success: boolean;
     data: ShoppingList;
   }> => {
-    const response = await api.get(`/shopping/${shoppingListId}`);
+    const response = await apiClient.get(`/shopping/${shoppingListId}`);
     return response.data;
   },
 
@@ -90,12 +75,12 @@ export const shoppingListService = {
   updateShoppingList: async (shoppingListId: string, data: {
     name?: string;
     description?: string;
-    status?: 'active' | 'completed' | 'archived';
+    status?: 'pending' | 'in_progress' | 'completed';
   }): Promise<{
     success: boolean;
     message: string;
   }> => {
-    const response = await api.put(`/shopping/${shoppingListId}`, data);
+    const response = await apiClient.put(`/shopping/${shoppingListId}`, data);
     return response.data;
   },
 
@@ -104,7 +89,7 @@ export const shoppingListService = {
     success: boolean;
     message: string;
   }> => {
-    const response = await api.delete(`/shopping/${shoppingListId}`);
+    const response = await apiClient.delete(`/shopping/${shoppingListId}`);
     return response.data;
   },
 
@@ -121,7 +106,7 @@ export const shoppingListService = {
     message: string;
     itemId: string;
   }> => {
-    const response = await api.post(`/shopping/${shoppingListId}/items`, data);
+    const response = await apiClient.post(`/shopping/${shoppingListId}/items`, data);
     return response.data;
   },
 
@@ -136,7 +121,7 @@ export const shoppingListService = {
     success: boolean;
     message: string;
   }> => {
-    const response = await api.put(`/shopping/items/${itemId}`, data);
+    const response = await apiClient.put(`/shopping/items/${itemId}`, data);
     return response.data;
   },
 
@@ -145,7 +130,7 @@ export const shoppingListService = {
     success: boolean;
     message: string;
   }> => {
-    const response = await api.delete(`/shopping/items/${itemId}`);
+    const response = await apiClient.delete(`/shopping/items/${itemId}`);
     return response.data;
   },
 
@@ -154,7 +139,7 @@ export const shoppingListService = {
     success: boolean;
     message: string;
   }> => {
-    const response = await api.patch(`/shopping/items/${itemId}/toggle`);
+    const response = await apiClient.patch(`/shopping/items/${itemId}/toggle`);
     return response.data;
   },
 };

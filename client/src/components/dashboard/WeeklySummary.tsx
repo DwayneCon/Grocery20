@@ -15,6 +15,7 @@ import GlassCard from '../common/GlassCard';
 import { useTheme } from '../../contexts/ThemeContext';
 import { streakService, StreakData } from '../../services/streakService';
 import { triggerCelebration } from '../../utils/celebrations';
+import { logger } from '../../utils/logger';
 
 interface WeeklySummaryProps {
   open: boolean;
@@ -40,7 +41,7 @@ const WeeklySummary: React.FC<WeeklySummaryProps> = ({ open, onClose }) => {
       const data = await streakService.getStreakData();
       setStreakData(data);
     } catch (error) {
-      console.error('Failed to load weekly summary:', error);
+      logger.error('Failed to load weekly summary', error instanceof Error ? error : undefined);
     } finally {
       setLoading(false);
     }

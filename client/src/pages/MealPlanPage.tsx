@@ -15,6 +15,13 @@ import RateRecipeDialog from '../components/recipes/RateRecipeDialog';
 import RecipeReviews from '../components/recipes/RecipeReviews';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { RootState } from '../features/store';
+import ServingScaler from '../components/recipes/ServingScaler';
+import IngredientSubstitutionPanel from '../components/recipes/IngredientSubstitutionPanel';
+import { Substitution } from '../utils/ingredientSubstitutions';
+import { Edit as EditIcon, Save as SaveIcon } from '@mui/icons-material';
+import { logger } from '../utils/logger';
 
 interface ParsedMealNotes {
   name?: string;
@@ -37,7 +44,7 @@ interface ParsedMealNotes {
 const MealPlanPage = () => {
   const navigate = useNavigate();
   const { mode } = useTheme();
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const { user } = useSelector((state: RootState) => state.auth);
   const [mealPlan, setMealPlan] = useState<any>(null);
   const [meals, setMeals] = useState<MealPlanMeal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,19 +57,27 @@ const MealPlanPage = () => {
   const [loadingRatings, setLoadingRatings] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
 
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
+  const [editServings, setEditServings] = useState(4);
+  const [substitutions, setSubstitutions] = useState<Map<string, Substitution>>(new Map());
+  const [substitutionAnchorEl, setSubstitutionAnchorEl] = useState<HTMLElement | null>(null);
+  const [selectedIngredient, setSelectedIngredient] = useState<{ name: string; amount: string; unit: string } | null>(null);
+  const [savingRecipe, setSavingRecipe] = useState(false);
+
   // Load current week's meal plan
   useEffect(() => {
-    loadMealPlan();
-  }, []);
+    if (user?.householdId) {
+      loadMealPlan();
+    }
+  }, [user?.householdId]);
 
   const loadMealPlan = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Get user's household ID from localStorage
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const householdId = user.householdId;
+      const householdId = user?.householdId;
 
       if (!householdId) {
         setError('No household found. Please set up your household first.');
@@ -73,14 +88,14 @@ const MealPlanPage = () => {
       const response = await mealPlanService.getCurrentWeekPlan(householdId);
 
       if (response.success && response.mealPlan) {
-        setMealPlan(response.mealPlan.mealPlan);
+        setMealPlan(response.mealPlan);
         setMeals(response.mealPlan.meals || []);
       } else {
         setMealPlan(null);
         setMeals([]);
       }
     } catch (err: any) {
-      console.error('Error loading meal plan:', err);
+      logger.error('Error loading meal plan', err instanceof Error ? err : undefined);
       setError(err.response?.data?.error || err.message || 'Failed to load meal plan');
     } finally {
       setLoading(false);
@@ -92,8 +107,7 @@ const MealPlanPage = () => {
       setGenerating(true);
       setError(null);
 
-      const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const householdId = user.householdId;
+      const householdId = user?.householdId;
 
       if (!householdId) {
         setError('No household found. Please set up your household first.');
@@ -111,24 +125,47 @@ const MealPlanPage = () => {
         await loadMealPlan();
       }
     } catch (err: any) {
-      console.error('Error generating meal plan:', err);
+      logger.error('Error generating meal plan', err instanceof Error ? err : undefined);
       setError(err.response?.data?.error || err.message || 'Failed to generate meal plan');
     } finally {
       setGenerating(false);
     }
   };
 
-  const getMealsByDay = (dayName: string) => {
-    const dayIndex = days.indexOf(dayName);
-    return meals.filter(meal => {
-      const mealDate = new Date(meal.meal_date);
-      return mealDate.getDay() === dayIndex;
+  // Normalize any date value to a YYYY-MM-DD string
+  const normalizeDateStr = (date: any): string => {
+    if (!date) return '';
+    const str = typeof date === 'string' ? date : new Date(date).toISOString();
+    return str.split('T')[0];
+  };
+
+  // Compute the 7 days of the plan from week_start
+  const getPlanDays = () => {
+    if (!mealPlan?.week_start) return [];
+    const startStr = normalizeDateStr(mealPlan.week_start);
+    if (!startStr) return [];
+    // Parse at noon to avoid timezone drift
+    const start = new Date(startStr + 'T12:00:00');
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      return {
+        dateStr: d.toISOString().split('T')[0],
+        dayName: d.toLocaleDateString('en-US', { weekday: 'long' }),
+        displayDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      };
     });
   };
 
-  const getMealByDayAndType = (dayName: string, mealType: string) => {
-    const dayMeals = getMealsByDay(dayName);
-    return dayMeals.find(m => m.meal_type.toLowerCase() === mealType.toLowerCase());
+  // Match meals by date string (no timezone issues)
+  const getMealsByDate = (dateStr: string) => {
+    return meals.filter(meal => normalizeDateStr(meal.meal_date) === dateStr);
+  };
+
+  const getMealByDateAndType = (dateStr: string, mealType: string) => {
+    return getMealsByDate(dateStr).find(
+      m => m.meal_type.toLowerCase() === mealType.toLowerCase()
+    );
   };
 
   const parseMealNotes = (notes: any): ParsedMealNotes => {
@@ -150,7 +187,7 @@ const MealPlanPage = () => {
         setRatingStats(response.data.stats);
       }
     } catch (err) {
-      console.error('Error loading ratings:', err);
+      logger.error('Error loading ratings', err instanceof Error ? err : undefined);
     } finally {
       setLoadingRatings(false);
     }
@@ -173,8 +210,81 @@ const MealPlanPage = () => {
     }
   };
 
-  const renderMealCard = (dayName: string, mealType: string, index: number) => {
-    const meal = getMealByDayAndType(dayName, mealType);
+  const handleEditToggle = () => {
+    if (!editMode && selectedMeal) {
+      const mealData = parseMealNotes(selectedMeal.notes);
+      setEditServings(mealData.cookTime ? (selectedMeal as any).servings || 4 : 4);
+      setSubstitutions(new Map());
+    }
+    setEditMode(!editMode);
+  };
+
+  const handleIngredientClick = (event: React.MouseEvent<HTMLElement>, ingredient: { name: string; amount: string; unit: string }) => {
+    if (!editMode) return;
+    setSelectedIngredient(ingredient);
+    setSubstitutionAnchorEl(event.currentTarget);
+  };
+
+  const handleSubstitute = (original: string, sub: Substitution) => {
+    setSubstitutions(prev => new Map(prev).set(original, sub));
+    setSubstitutionAnchorEl(null);
+    setSelectedIngredient(null);
+  };
+
+  const handleAskNora = (ingredientName: string) => {
+    setSubstitutionAnchorEl(null);
+    setSelectedIngredient(null);
+    setDetailsOpen(false);
+    navigate('/chat', { state: { prefill: `Can you suggest a substitute for ${ingredientName}?` } });
+  };
+
+  const getScaledAmount = (amount: string, baseServings: number) => {
+    const num = parseFloat(amount);
+    if (isNaN(num)) return amount;
+    const scaled = (num * editServings) / baseServings;
+    return scaled % 1 === 0 ? scaled.toString() : scaled.toFixed(1);
+  };
+
+  const handleSaveAsNewRecipe = async () => {
+    if (!selectedMeal) return;
+    const mealData = parseMealNotes(selectedMeal.notes);
+    setSavingRecipe(true);
+    try {
+      const baseServings = (selectedMeal as any).servings || 4;
+      const modifiedIngredients = (mealData.ingredients || []).map((ing: any) => {
+        const sub = substitutions.get(ing.name);
+        return {
+          name: sub ? sub.substitute : ing.name,
+          amount: getScaledAmount(ing.amount, baseServings),
+          unit: ing.unit,
+          notes: sub ? `Substituted from ${ing.name} (${sub.ratio})` : ing.notes,
+        };
+      });
+
+      await recipeService.createRecipe({
+        name: `${mealData.name || 'Recipe'} (Modified)`,
+        description: mealData.description,
+        prepTime: mealData.prepTime,
+        cookTime: mealData.cookTime,
+        servings: editServings,
+        difficulty: mealData.difficulty,
+        ingredients: modifiedIngredients,
+        instructions: mealData.instructions,
+        nutritionInfo: mealData.nutrition,
+      });
+
+      setEditMode(false);
+      setError(null);
+      // Show success - could use a snackbar
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save recipe');
+    } finally {
+      setSavingRecipe(false);
+    }
+  };
+
+  const renderMealCard = (dateStr: string, mealType: string, index: number) => {
+    const meal = getMealByDateAndType(dateStr, mealType);
     const mealData = meal ? parseMealNotes(meal.notes) : null;
 
     return (
@@ -202,26 +312,64 @@ const MealPlanPage = () => {
             {meal && <ArrowForward sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', fontSize: 16 }} />}
           </Box>
 
-          <Typography variant="h6" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 3 }}>
-            {meal && mealData?.name ? sanitizeText(mealData.name) : 'No meal planned'}
+          <Typography variant="h6" fontWeight="bold" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 1 }}>
+            {meal && (mealData?.name || meal.recipe_name)
+              ? sanitizeText(mealData?.name || meal.recipe_name || '')
+              : 'No meal planned'}
           </Typography>
 
-          {meal && mealData && (
+          {meal && mealData?.description && (
+            <Typography variant="body2" sx={{
+              color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+              mb: 2,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>
+              {mealData.description}
+            </Typography>
+          )}
+
+          {meal && (
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              {mealData.prepTime && (
+              {(mealData?.prepTime || meal.prep_time) && (
                 <Chip
                   icon={<AccessTime sx={{ "&&": { color: mode === 'dark' ? 'white' : '#000000' } }} />}
-                  label={`${mealData.prepTime}m`}
+                  label={`${mealData?.prepTime || meal.prep_time}m prep`}
                   size="small"
                   sx={{ bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: mode === 'dark' ? 'white' : '#000000' }}
                 />
               )}
-              {mealData.nutrition?.calories && (
+              {mealData?.cookTime && (
+                <Chip
+                  icon={<AccessTime sx={{ "&&": { color: mode === 'dark' ? 'white' : '#000000' } }} />}
+                  label={`${mealData.cookTime}m cook`}
+                  size="small"
+                  sx={{ bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: mode === 'dark' ? 'white' : '#000000' }}
+                />
+              )}
+              {mealData?.nutrition?.calories && (
                 <Chip
                   icon={<LocalFireDepartment sx={{ "&&": { color: '#FFE66D' } }} />}
                   label={`${mealData.nutrition.calories} kcal`}
                   size="small"
                   sx={{ bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', color: mode === 'dark' ? 'white' : '#000000' }}
+                />
+              )}
+              {mealData?.difficulty && (
+                <Chip
+                  label={mealData.difficulty}
+                  size="small"
+                  sx={{
+                    bgcolor: mealData.difficulty === 'easy' ? 'rgba(76,175,80,0.15)' :
+                             mealData.difficulty === 'medium' ? 'rgba(255,152,0,0.15)' :
+                             'rgba(244,67,54,0.15)',
+                    color: mealData.difficulty === 'easy' ? '#4CAF50' :
+                           mealData.difficulty === 'medium' ? '#FF9800' :
+                           '#F44336',
+                    textTransform: 'capitalize',
+                  }}
                 />
               )}
             </Box>
@@ -299,6 +447,24 @@ const MealPlanPage = () => {
                     </Typography>
                   </Box>
                   <Button
+                    variant={editMode ? "contained" : "outlined"}
+                    size="small"
+                    startIcon={<EditIcon />}
+                    onClick={handleEditToggle}
+                    sx={{
+                      color: editMode ? 'black' : '#4ECDC4',
+                      bgcolor: editMode ? '#4ECDC4' : 'transparent',
+                      borderColor: '#4ECDC4',
+                      mr: 1,
+                      '&:hover': {
+                        borderColor: '#4ECDC4',
+                        bgcolor: editMode ? '#45b7af' : 'rgba(78,205,196,0.1)',
+                      },
+                    }}
+                  >
+                    {editMode ? 'Editing' : 'Edit'}
+                  </Button>
+                  <Button
                     variant="outlined"
                     size="small"
                     startIcon={<StarRate />}
@@ -356,6 +522,15 @@ const MealPlanPage = () => {
                 {/* Details Tab */}
                 {activeTab === 0 && (
                   <Box>
+                {editMode && (
+                  <Box sx={{ mb: 3 }}>
+                    <ServingScaler
+                      baseServings={(selectedMeal as any).servings || 4}
+                      currentServings={editServings}
+                      onServingsChange={setEditServings}
+                    />
+                  </Box>
+                )}
                 {mealData.description && (
                   <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.8)', mb: 3 }}>
                     {mealData.description}
@@ -366,15 +541,38 @@ const MealPlanPage = () => {
                   <Box sx={{ mb: 3 }}>
                     <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2 }}>Ingredients</Typography>
                     <Grid container spacing={1}>
-                      {mealData.ingredients.map((ing: any, idx: number) => (
-                        <Grid size={{ xs: 12, sm: 6 }} key={idx}>
-                          <Chip
-                            label={`${ing.amount} ${ing.unit} ${ing.name}`}
-                            size="small"
-                            sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', mr: 1, mb: 1 }}
-                          />
-                        </Grid>
-                      ))}
+                      {mealData.ingredients.map((ing: any, idx: number) => {
+                        const sub = substitutions.get(ing.name);
+                        const baseServings = (selectedMeal as any).servings || 4;
+                        const displayAmount = editMode ? getScaledAmount(ing.amount, baseServings) : ing.amount;
+                        const displayName = sub ? sub.substitute : ing.name;
+                        return (
+                          <Grid size={{ xs: 12, sm: 6 }} key={idx}>
+                            <Chip
+                              label={`${displayAmount} ${ing.unit} ${displayName}`}
+                              size="small"
+                              onClick={(e) => handleIngredientClick(e, ing)}
+                              sx={{
+                                bgcolor: sub ? 'rgba(78,205,196,0.2)' : 'rgba(255,255,255,0.1)',
+                                color: sub ? '#4ECDC4' : (mode === 'dark' ? 'white' : '#000'),
+                                mr: 1,
+                                mb: 1,
+                                cursor: editMode ? 'pointer' : 'default',
+                                textDecoration: sub ? 'none' : 'none',
+                                border: editMode ? '1px dashed rgba(78,205,196,0.4)' : 'none',
+                                '&:hover': editMode ? {
+                                  bgcolor: 'rgba(78,205,196,0.15)',
+                                } : {},
+                              }}
+                            />
+                            {sub && (
+                              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)', display: 'block', ml: 1, mt: -0.5, mb: 0.5 }}>
+                                was: {ing.amount} {ing.unit} {ing.name}
+                              </Typography>
+                            )}
+                          </Grid>
+                        );
+                      })}
                     </Grid>
                   </Box>
                 )}
@@ -469,13 +667,41 @@ const MealPlanPage = () => {
                   </Button>
                 )}
                 <Box sx={{ flex: 1 }} />
-                <Button onClick={() => setDetailsOpen(false)} sx={{ color: 'white' }}>
+                {editMode && (substitutions.size > 0 || editServings !== ((selectedMeal as any)?.servings || 4)) && (
+                  <Button
+                    variant="contained"
+                    startIcon={savingRecipe ? <CircularProgress size={16} /> : <SaveIcon />}
+                    onClick={handleSaveAsNewRecipe}
+                    disabled={savingRecipe}
+                    sx={{
+                      bgcolor: '#4ECDC4',
+                      color: 'black',
+                      fontWeight: 'bold',
+                      mr: 1,
+                      '&:hover': { bgcolor: '#45b7af' },
+                    }}
+                  >
+                    Save as New Recipe
+                  </Button>
+                )}
+                <Button onClick={() => { setDetailsOpen(false); setEditMode(false); }} sx={{ color: mode === 'dark' ? 'white' : '#000' }}>
                   Close
                 </Button>
               </DialogActions>
             </>
           );
         })()}
+
+        {/* Ingredient Substitution Panel */}
+        {selectedIngredient && (
+          <IngredientSubstitutionPanel
+            ingredient={selectedIngredient}
+            onSubstitute={handleSubstitute}
+            onAskNora={handleAskNora}
+            anchorEl={substitutionAnchorEl}
+            onClose={() => { setSubstitutionAnchorEl(null); setSelectedIngredient(null); }}
+          />
+        )}
       </Dialog>
 
       {/* Rate Recipe Dialog */}
@@ -534,6 +760,18 @@ const MealPlanPage = () => {
           </Box>
         </Box>
 
+        {generating && (
+          <GlassCard intensity="ultra" sx={{ p: 6, textAlign: 'center' }}>
+            <CircularProgress size={60} sx={{ color: '#4ECDC4', mb: 3 }} />
+            <Typography variant="h5" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2, fontWeight: 'bold' }}>
+              Generating Your Meal Plan
+            </Typography>
+            <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
+              Nora is crafting a personalized 7-day meal plan for your household...
+            </Typography>
+          </GlassCard>
+        )}
+
         {!mealPlan && !generating ? (
           <GlassCard intensity="ultra" sx={{ p: 6, textAlign: 'center' }}>
             <Restaurant sx={{ fontSize: 80, color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', mb: 3 }} />
@@ -560,19 +798,23 @@ const MealPlanPage = () => {
               Generate Meal Plan
             </Button>
           </GlassCard>
-        ) : (
+        ) : mealPlan && (
           <Grid container spacing={4}>
-            {days.map((day, i) => (
-              <Grid size={{ xs: 12 }} key={day}>
+            {getPlanDays().map((day, i) => (
+              <Grid size={{ xs: 12 }} key={day.dateStr}>
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="h5" sx={{ color: mode === 'dark' ? 'white' : '#000000', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 2 }}>
-                    {day} <Box component="span" sx={{ height: 1, width: 40, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }} />
+                    {day.dayName}
+                    <Typography component="span" variant="body2" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}>
+                      {day.displayDate}
+                    </Typography>
+                    <Box component="span" sx={{ height: 1, flex: 1, maxWidth: 60, bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)' }} />
                   </Typography>
                 </Box>
 
                 <Grid container spacing={3}>
                   {['Breakfast', 'Lunch', 'Dinner'].map((type, j) =>
-                    renderMealCard(day, type, i * 3 + j)
+                    renderMealCard(day.dateStr, type, i * 3 + j)
                   )}
                 </Grid>
               </Grid>

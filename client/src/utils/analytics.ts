@@ -390,7 +390,7 @@ class Analytics {
 const analytics = new Analytics();
 
 // Auto-initialize in production (set your GA4 measurement ID)
-if (process.env.NODE_ENV === 'production') {
+if (import.meta.env.PROD) {
   const GA4_MEASUREMENT_ID = import.meta.env.VITE_GA4_MEASUREMENT_ID || 'G-XXXXXXXXXX';
   analytics.init(GA4_MEASUREMENT_ID);
 }

@@ -56,6 +56,10 @@
     "web-vitals": "^5.1.0",
     "zustand": "^5.0.8"
   },
+  "overrides": {
+    "react": "$react",
+    "react-dom": "$react-dom"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",

@@ -4,6 +4,7 @@ import { IconButton, Box, Typography, Tooltip, Fade } from '@mui/material';
 import { Mic, MicOff, Stop } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../../contexts/ThemeContext';
+import { logger } from '../../utils/logger';
 
 interface VoiceInputProps {
   onTranscript: (text: string) => void;
@@ -57,7 +58,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onError, disabled
       };
 
       recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error:', event.error);
+        logger.error('Speech recognition error', undefined, { errorType: event.error });
         onError?.(event.error);
         setIsListening(false);
       };
@@ -107,7 +108,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({ onTranscript, onError, disabled
 
       updateAudioLevel();
     } catch (error) {
-      console.error('Error accessing microphone:', error);
+      logger.error('Error accessing microphone', error instanceof Error ? error : undefined);
       onError?.('Microphone access denied');
     }
   };

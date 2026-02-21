@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -21,10 +22,10 @@ const pool = mysql.createPool({
 export const testConnection = async (): Promise<void> => {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+    logger.info('Database connected successfully');
     connection.release();
   } catch (error) {
-    console.error('❌ Database connection failed:', error);
+    logger.error('Database connection failed', error);
     throw error;
   }
 };
@@ -35,10 +36,10 @@ export const query = async <T = any>(
   params?: any[]
 ): Promise<T> => {
   try {
-    const [results] = await pool.execute(sql, params);
+    const [results] = params ? await pool.execute(sql, params) : await pool.execute(sql);
     return results as T;
   } catch (error) {
-    console.error('Database query error:', error);
+    logger.error('Database query error', error);
     throw error;
   }
 };

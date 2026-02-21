@@ -44,7 +44,7 @@ export const authRateLimiter = rateLimit({
 });
 
 // Input sanitization middleware
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   // Remove any potential XSS from request body
   if (req.body) {
     Object.keys(req.body).forEach(key => {

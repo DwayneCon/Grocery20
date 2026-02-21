@@ -6,6 +6,7 @@ import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
 import { RowDataPacket } from 'mysql2';
 import emailService from '../../services/emailService.js';
+import { logger } from '../../utils/logger.js';
 
 interface User extends RowDataPacket {
   id: string;
@@ -246,7 +247,7 @@ export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Respons
   try {
     await emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
   } catch (emailError) {
-    console.error('Failed to send password reset email:', emailError);
+    logger.error('Failed to send password reset email:', emailError);
   }
 
   res.json({

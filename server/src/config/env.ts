@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { logger } from '../utils/logger.js';
 
 dotenv.config();
 
@@ -68,7 +69,7 @@ export const config = {
 
   // CORS
   cors: {
-    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173'],
+    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000', 'http://localhost:5173', 'https://grocery.dwaynecon.com'],
   },
 };
 
@@ -137,17 +138,17 @@ export const validateEnv = (): void => {
 
   // Log warnings
   if (warnings.length > 0) {
-    console.warn('\n⚠️  Environment Configuration Warnings:');
-    warnings.forEach(warning => console.warn(`   - ${warning}`));
-    console.warn('');
+    logger.warn('\nEnvironment Configuration Warnings:');
+    warnings.forEach(warning => logger.warn(`   - ${warning}`));
+    logger.warn('');
   }
 
   // Throw errors in production to prevent startup
   if (errors.length > 0) {
-    console.error('\n❌ Environment Configuration Errors:');
-    errors.forEach(error => console.error(`   - ${error}`));
-    console.error('\n💡 Production deployment requires all secrets to be set and strong.');
-    console.error('   Please update your .env file or environment variables.\n');
+    logger.error('\nEnvironment Configuration Errors:');
+    errors.forEach(error => logger.error(`   - ${error}`));
+    logger.error('\nProduction deployment requires all secrets to be set and strong.');
+    logger.error('   Please update your .env file or environment variables.\n');
 
     if (isProduction) {
       throw new Error('Invalid environment configuration. Server cannot start in production with weak/missing secrets.');
@@ -156,7 +157,7 @@ export const validateEnv = (): void => {
 
   // Success message
   if (isProduction && errors.length === 0) {
-    console.log('✅ Environment configuration validated successfully.');
+    logger.info('Environment configuration validated successfully.');
   }
 };
 

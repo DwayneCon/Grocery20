@@ -13,6 +13,7 @@ import { Star, StarBorder } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import recipeService, { RecipeRating } from '../../services/recipeService';
 import GlassCard from '../common/GlassCard';
+import { logger } from '../../utils/logger';
 
 interface RecipeReviewsProps {
   recipeId: string;
@@ -47,7 +48,7 @@ const RecipeReviews = ({ recipeId }: RecipeReviewsProps) => {
         setOffset(newOffset);
       }
     } catch (err) {
-      console.error('Error loading reviews:', err);
+      logger.error('Error loading reviews', err instanceof Error ? err : undefined);
     } finally {
       setLoading(false);
     }

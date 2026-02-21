@@ -60,7 +60,7 @@ export const requestLogger = (req: AuthRequest, res: Response, next: NextFunctio
 /**
  * Middleware to log errors in requests
  */
-export const errorLogger = (err: Error, req: AuthRequest, res: Response, next: NextFunction) => {
+export const errorLogger = (err: Error, req: AuthRequest, _res: Response, next: NextFunction) => {
   const { method, originalUrl } = req;
 
   logger.error(

@@ -5,6 +5,7 @@ import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
 import { RowDataPacket } from 'mysql2';
+import { logger } from '../../utils/logger.js';
 
 interface UserStreakData extends RowDataPacket {
   current_streak: number;
@@ -57,7 +58,7 @@ export const getStreakData = asyncHandler(async (req: AuthRequest, res: Response
     try {
       unlockedAchievements = JSON.parse(user.unlocked_achievements);
     } catch (error) {
-      console.error('Failed to parse unlocked achievements:', error);
+      logger.error('Failed to parse unlocked achievements:', error);
     }
   }
 

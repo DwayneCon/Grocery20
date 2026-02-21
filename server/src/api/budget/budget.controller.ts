@@ -3,6 +3,7 @@ import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Create or update budget tracking for a week
@@ -63,7 +64,7 @@ export const createBudget = asyncHandler(async (req: AuthRequest, res: Response)
       });
     }
   } catch (error) {
-    console.error('Error creating/updating budget:', error);
+    logger.error('Error creating/updating budget:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create/update budget',
@@ -125,7 +126,7 @@ export const getHouseholdBudgets = asyncHandler(async (req: AuthRequest, res: Re
       data: budgets,
     });
   } catch (error) {
-    console.error('Error getting household budgets:', error);
+    logger.error('Error getting household budgets:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get household budgets',
@@ -157,7 +158,6 @@ export const getCurrentBudget = asyncHandler(async (req: AuthRequest, res: Respo
     }
 
     // Get current week's budget
-    const today = new Date();
     const budgets: any[] = await query(
       `SELECT
         id,
@@ -193,7 +193,7 @@ export const getCurrentBudget = asyncHandler(async (req: AuthRequest, res: Respo
       data: budgets[0],
     });
   } catch (error) {
-    console.error('Error getting current budget:', error);
+    logger.error('Error getting current budget:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get current budget',
@@ -263,7 +263,7 @@ export const updateSpending = asyncHandler(async (req: AuthRequest, res: Respons
       data: updated[0],
     });
   } catch (error) {
-    console.error('Error updating spending:', error);
+    logger.error('Error updating spending:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to update spending',
@@ -354,7 +354,7 @@ export const getBudgetStats = asyncHandler(async (req: AuthRequest, res: Respons
       },
     });
   } catch (error) {
-    console.error('Error getting budget stats:', error);
+    logger.error('Error getting budget stats:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get budget statistics',
@@ -396,7 +396,7 @@ export const deleteBudget = asyncHandler(async (req: AuthRequest, res: Response)
       message: 'Budget deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting budget:', error);
+    logger.error('Error deleting budget:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete budget',

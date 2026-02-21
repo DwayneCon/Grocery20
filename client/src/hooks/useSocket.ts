@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../features/store';
+import { logger } from '../utils/logger';
 
 /**
  * Custom hook that manages a Socket.IO connection authenticated with the
@@ -39,7 +40,7 @@ export function useSocket() {
     });
 
     socket.on('connect_error', (err) => {
-      console.warn('[useSocket] connection error:', err.message);
+      logger.warn('[useSocket] connection error', { message: err.message });
       setIsConnected(false);
     });
 

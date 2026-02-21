@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 interface NutritionData {
   calories?: number;
@@ -125,7 +126,7 @@ export const getMealPlanNutrition = asyncHandler(async (req: AuthRequest, res: R
       },
     });
   } catch (error) {
-    console.error('Error getting meal plan nutrition:', error);
+    logger.error('Error getting meal plan nutrition:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get meal plan nutrition',
@@ -238,7 +239,7 @@ export const getDayNutrition = asyncHandler(async (req: AuthRequest, res: Respon
       },
     });
   } catch (error) {
-    console.error('Error getting day nutrition:', error);
+    logger.error('Error getting day nutrition:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get day nutrition',
@@ -317,8 +318,9 @@ export const compareWithGoals = asyncHandler(async (req: AuthRequest, res: Respo
     }} = {};
 
     for (const [nutrient, goal] of Object.entries(goals)) {
+      const goalNum = goal as number;
       const current = dailyAverage[nutrient as keyof NutritionData] || 0;
-      const percentage = goal > 0 ? Math.round((current / goal) * 100) : 0;
+      const percentage = goalNum > 0 ? Math.round((current / goalNum) * 100) : 0;
 
       let status: 'under' | 'on_track' | 'over' = 'on_track';
       if (percentage < 90) status = 'under';
@@ -326,7 +328,7 @@ export const compareWithGoals = asyncHandler(async (req: AuthRequest, res: Respo
 
       comparison[nutrient] = {
         current,
-        goal,
+        goal: goalNum,
         percentage,
         status,
       };
@@ -341,7 +343,7 @@ export const compareWithGoals = asyncHandler(async (req: AuthRequest, res: Respo
       },
     });
   } catch (error) {
-    console.error('Error comparing with goals:', error);
+    logger.error('Error comparing with goals:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to compare with goals',
@@ -437,7 +439,7 @@ export const getNutritionByMealType = asyncHandler(async (req: AuthRequest, res:
       data: byMealType,
     });
   } catch (error) {
-    console.error('Error getting nutrition by meal type:', error);
+    logger.error('Error getting nutrition by meal type:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get nutrition by meal type',

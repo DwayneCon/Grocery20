@@ -3,6 +3,7 @@ import { Box, IconButton, Tooltip } from '@mui/material';
 import { ThumbUp, ThumbDown, ContentCopy, Share } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
+import { logger } from '../../utils/logger';
 
 interface MessageReactionsProps {
   messageId: string;
@@ -19,7 +20,7 @@ const MessageReactions = ({ messageId, messageText, onReaction }: MessageReactio
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy text:', err);
+      logger.error('Failed to copy text', err instanceof Error ? err : undefined);
     }
   };
 

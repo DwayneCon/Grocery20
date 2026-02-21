@@ -64,5 +64,24 @@ export function startScheduler(): void {
     }
   });
 
-  logger.info('Scheduler started: weekly plans (Sun 6AM), inventory checks (daily 8AM)');
+  // Weekly at Sunday 2 AM: scrape store deals (Walmart, Aldi)
+  cron.schedule('0 2 * * 0', async () => {
+    logger.info('Cron: Starting weekly store deal scrape');
+    const scrapers = [
+      { name: 'walmart', load: async () => { const m = await import('../scraper/walmartScraper.js'); return new m.WalmartScraper(); } },
+      { name: 'aldi', load: async () => { const m = await import('../scraper/aldiScraper.js'); return new m.AldiScraper(); } },
+    ];
+    for (const { name, load } of scrapers) {
+      try {
+        const scraper = await load();
+        const products = await scraper.scrape();
+        const saved = await scraper.saveProducts(products);
+        logger.info(`Cron: ${name} scrape complete - scraped ${products.length}, saved ${saved}`);
+      } catch (err) {
+        logger.error(`Cron: ${name} scrape failed`, err);
+      }
+    }
+  });
+
+  logger.info('Scheduler started: weekly plans (Sun 6AM), inventory checks (daily 8AM), store scrape (Sun 2AM)');
 }

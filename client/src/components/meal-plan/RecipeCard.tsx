@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
+import { logger } from '../../utils/logger';
 
 interface Recipe {
   id: string;
@@ -74,7 +75,7 @@ const RecipeCard = ({ recipe, onShare }: RecipeCardProps) => {
 
   const startTimer = () => {
     // You can implement actual timer functionality here
-    console.log('Starting timer for', recipe.name);
+    logger.info('Starting timer for', { recipeName: recipe.name });
   };
 
   const difficultyColors = {

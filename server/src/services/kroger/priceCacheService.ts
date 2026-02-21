@@ -32,7 +32,7 @@ export class PriceCacheService {
   private cache: Map<string, CacheEntry<any>>;
   private readonly DEFAULT_TTL_MS: number;
   private readonly CLEANUP_INTERVAL_MS: number;
-  private cleanupTimer: NodeJS.Timeout | null;
+  private cleanupTimer: NodeJS.Timeout | null = null;
 
   constructor() {
     this.cache = new Map();
@@ -119,7 +119,7 @@ export class PriceCacheService {
    * Cache bulk price lookup results
    */
   cacheBulkPrices(
-    items: Array<{ name: string; quantity: number }>,
+    _items: Array<{ name: string; quantity: number }>,
     results: Array<{
       itemName: string;
       quantity: number;

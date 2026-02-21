@@ -23,6 +23,7 @@ interface LogContext {
   statusCode?: number;
   duration?: number;
   metadata?: Record<string, any>;
+  [key: string]: any;
 }
 
 class Logger {
@@ -115,13 +116,13 @@ class Logger {
       level,
       message,
       ...context,
-      ...(error && {
+      ...(error != null ? {
         error: error instanceof Error ? {
           name: error.name,
           message: error.message,
           stack: this.isDevelopment ? error.stack : undefined, // Only include stack in dev
-        } : error
-      }),
+        } : { message: String(error) }
+      } : {}),
     };
 
     // Console output

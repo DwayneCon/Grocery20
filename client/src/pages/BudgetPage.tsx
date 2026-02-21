@@ -34,10 +34,11 @@ import {
 } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { RootState } from '../store/store';
+import { RootState } from '../features/store';
 import { useTheme } from '../contexts/ThemeContext';
 import GlassCard from '../components/common/GlassCard';
 import budgetService, { Budget, BudgetStats } from '../services/budgetService';
+import { logger } from '../utils/logger';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -111,7 +112,7 @@ const BudgetPage = () => {
         setBudgetStats(statsResponse.data);
       }
     } catch (err: any) {
-      console.error('Error fetching budget data:', err);
+      logger.error('Error fetching budget data', err instanceof Error ? err : undefined);
       setError('Failed to load budget data');
     } finally {
       setLoading(false);
@@ -172,7 +173,7 @@ const BudgetPage = () => {
         await fetchAllData();
       }
     } catch (err: any) {
-      console.error('Error saving budget:', err);
+      logger.error('Error saving budget', err instanceof Error ? err : undefined);
       setError('Failed to save budget');
     } finally {
       setLoading(false);

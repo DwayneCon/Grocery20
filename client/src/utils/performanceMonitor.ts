@@ -4,6 +4,8 @@
  * Performance monitoring utilities for tracking Core Web Vitals and custom metrics
  */
 
+import { logger } from './logger';
+
 interface PerformanceMetrics {
   fcp?: number; // First Contentful Paint
   lcp?: number; // Largest Contentful Paint
@@ -77,7 +79,7 @@ class PerformanceMonitor {
       });
       navigationObserver.observe({ type: 'paint', buffered: true });
     } catch (error) {
-      console.warn('PerformanceObserver not supported:', error);
+      logger.warn('PerformanceObserver not supported', { error });
     }
   }
 
@@ -122,24 +124,24 @@ class PerformanceMonitor {
    * Log metrics to console (development only)
    */
   public logMetrics() {
-    if (process.env.NODE_ENV === 'development') {
-      console.group('📊 Performance Metrics');
-      console.log('First Contentful Paint (FCP):', this.metrics.fcp?.toFixed(2), 'ms');
-      console.log('Largest Contentful Paint (LCP):', this.metrics.lcp?.toFixed(2), 'ms');
-      console.log('First Input Delay (FID):', this.metrics.fid?.toFixed(2), 'ms');
-      console.log('Cumulative Layout Shift (CLS):', this.metrics.cls?.toFixed(4));
-      console.log('Time to First Byte (TTFB):', this.metrics.ttfb?.toFixed(2), 'ms');
-      console.groupEnd();
+    if (import.meta.env.DEV) {
+      logger.info('Performance Metrics', {
+        fcp: this.metrics.fcp?.toFixed(2) + ' ms',
+        lcp: this.metrics.lcp?.toFixed(2) + ' ms',
+        fid: this.metrics.fid?.toFixed(2) + ' ms',
+        cls: this.metrics.cls?.toFixed(4),
+        ttfb: this.metrics.ttfb?.toFixed(2) + ' ms',
+      });
 
       // Performance warnings
       if (this.metrics.lcp && this.metrics.lcp > 2500) {
-        console.warn('⚠️ LCP is slow (>2.5s). Target: <2.5s for good performance.');
+        logger.warn('LCP is slow (>2.5s). Target: <2.5s for good performance.', { lcp: this.metrics.lcp });
       }
       if (this.metrics.fid && this.metrics.fid > 100) {
-        console.warn('⚠️ FID is slow (>100ms). Target: <100ms for good performance.');
+        logger.warn('FID is slow (>100ms). Target: <100ms for good performance.', { fid: this.metrics.fid });
       }
       if (this.metrics.cls && this.metrics.cls > 0.1) {
-        console.warn('⚠️ CLS is high (>0.1). Target: <0.1 for good performance.');
+        logger.warn('CLS is high (>0.1). Target: <0.1 for good performance.', { cls: this.metrics.cls });
       }
     }
   }
@@ -164,7 +166,7 @@ class PerformanceMonitor {
       const measure = performance.getEntriesByName(name)[0];
       return measure.duration;
     } catch (error) {
-      console.warn(`Failed to measure ${name}:`, error);
+      logger.warn(`Failed to measure ${name}`, { error });
       return 0;
     }
   }
@@ -208,7 +210,7 @@ class PerformanceMonitor {
 const performanceMonitor = new PerformanceMonitor();
 
 // Auto-log in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   window.addEventListener('load', () => {
     setTimeout(() => performanceMonitor.logMetrics(), 3000);
   });

@@ -6,6 +6,8 @@ import {
   getStoreDeals,
   addStoreProduct,
   comparePrices,
+  compareLivePrices,
+  triggerScrape,
 } from './stores.controller.js';
 import { authenticateToken } from '../../middleware/auth.js';
 import { validate, addStoreProductSchema, comparePricesSchema } from '../../middleware/validators.js';
@@ -24,11 +26,17 @@ router.get('/search', searchProducts);
 // Compare prices for shopping list
 router.post('/compare-prices', validate(comparePricesSchema), comparePrices);
 
+// Live price comparison using Kroger API + scraped data
+router.post('/compare-live', compareLivePrices);
+
 // Add/update store product
 router.post('/products', validate(addStoreProductSchema), addStoreProduct);
 
 // Get prices for a specific ingredient
 router.get('/prices/:ingredientId', getIngredientPrices);
+
+// Trigger store scrape (admin)
+router.post('/scrape/:storeName', triggerScrape);
 
 // Get store deals
 router.get('/:storeId/deals', getStoreDeals);

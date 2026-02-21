@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Box, Typography, Button } from '@mui/material';
 import { Error as ErrorIcon, Refresh } from '@mui/icons-material';
 import GlassCard from './GlassCard';
+import { logger } from '../../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +37,7 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     // Log error to error reporting service
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    logger.error('ErrorBoundary caught an error', error, { errorInfo });
 
     this.setState({
       error,
@@ -115,7 +116,7 @@ class ErrorBoundary extends Component<Props, State> {
               We're sorry for the inconvenience. An unexpected error occurred. Please try refreshing the page.
             </Typography>
 
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <Box
                 sx={{
                   textAlign: 'left',

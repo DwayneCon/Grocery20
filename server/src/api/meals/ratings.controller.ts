@@ -3,6 +3,7 @@ import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Create or update a rating for a recipe
@@ -67,7 +68,7 @@ export const rateRecipe = asyncHandler(async (req: AuthRequest, res: Response) =
       });
     }
   } catch (error) {
-    console.error('Error rating recipe:', error);
+    logger.error('Error rating recipe:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to rate recipe',
@@ -143,7 +144,7 @@ export const getRecipeRatings = asyncHandler(async (req: AuthRequest, res: Respo
       },
     });
   } catch (error) {
-    console.error('Error getting recipe ratings:', error);
+    logger.error('Error getting recipe ratings:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get recipe ratings',
@@ -186,7 +187,7 @@ export const getMyRating = asyncHandler(async (req: AuthRequest, res: Response) 
       data: rating,
     });
   } catch (error) {
-    console.error('Error getting user rating:', error);
+    logger.error('Error getting user rating:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get rating',
@@ -221,7 +222,7 @@ export const deleteRating = asyncHandler(async (req: AuthRequest, res: Response)
       message: 'Rating deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting rating:', error);
+    logger.error('Error deleting rating:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete rating',
@@ -271,7 +272,7 @@ export const getTopRatedRecipes = asyncHandler(async (req: AuthRequest, res: Res
       data: parsedRecipes,
     });
   } catch (error) {
-    console.error('Error getting top-rated recipes:', error);
+    logger.error('Error getting top-rated recipes:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get top-rated recipes',

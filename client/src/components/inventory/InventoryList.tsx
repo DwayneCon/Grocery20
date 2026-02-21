@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../common/GlassCard';
 import inventoryService, { InventoryItem } from '../../services/inventoryService';
 import { useTheme } from '../../contexts/ThemeContext';
+import { logger } from '../../utils/logger';
 
 interface InventoryListProps {
   householdId: string;
@@ -42,7 +43,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
         setItems(response.data);
       }
     } catch (err) {
-      console.error('Error loading inventory:', err);
+      logger.error('Error loading inventory', err instanceof Error ? err : undefined);
       setError('Failed to load inventory');
     } finally {
       setLoading(false);
@@ -54,7 +55,7 @@ const InventoryList = ({ householdId }: InventoryListProps) => {
       await inventoryService.deleteItem(itemId);
       setItems(items.filter(item => item.id !== itemId));
     } catch (err) {
-      console.error('Error deleting item:', err);
+      logger.error('Error deleting item', err instanceof Error ? err : undefined);
     }
   };
 

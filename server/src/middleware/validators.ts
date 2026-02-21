@@ -274,7 +274,7 @@ export const updateItemSchema = Joi.object({
 
 // Validation middleware factory
 export const validate = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body, {
       abortEarly: false,
       stripUnknown: true,

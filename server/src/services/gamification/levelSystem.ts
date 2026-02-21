@@ -37,13 +37,7 @@ interface UserXPRow extends RowDataPacket {
   total_xp: number;
 }
 
-interface XPEventRow extends RowDataPacket {
-  id: string;
-  user_id: string;
-  action: string;
-  xp_amount: number;
-  created_at: string;
-}
+
 
 interface HeatmapRow extends RowDataPacket {
   activity_date: string;
@@ -154,7 +148,6 @@ export async function getHouseholdLeaderboard(householdId: string) {
     rank: index + 1,
     userId: row.user_id,
     name: row.name,
-    totalXP: row.total_xp,
     ...calculateLevel(row.total_xp),
   }));
 }

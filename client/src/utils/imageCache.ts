@@ -1,5 +1,7 @@
 /* client/src/utils/imageCache.ts */
 
+import { logger } from './logger';
+
 export interface CachedImage {
   url: string;
   thumbnail: string;
@@ -32,7 +34,7 @@ export const getImageFromCache = (mealName: string): CachedImage | null => {
 
     return parsedCache;
   } catch (error) {
-    console.error('Error reading from image cache:', error);
+    logger.error('Error reading from image cache', error instanceof Error ? error : undefined);
     return null;
   }
 };
@@ -62,10 +64,10 @@ export const saveImageToCache = (mealName: string, imageData: Omit<CachedImage, 
         };
         localStorage.setItem(cacheKey, JSON.stringify(cacheData));
       } catch (retryError) {
-        console.error('Error saving to image cache after cleanup:', retryError);
+        logger.error('Error saving to image cache after cleanup', retryError instanceof Error ? retryError : undefined);
       }
     } else {
-      console.error('Error saving to image cache:', error);
+      logger.error('Error saving to image cache', error instanceof Error ? error : undefined);
     }
   }
 };
@@ -100,9 +102,9 @@ export const clearOldCachedImages = (): void => {
     // Remove old cache entries
     keysToRemove.forEach(key => localStorage.removeItem(key));
 
-    console.log(`Cleared ${keysToRemove.length} old cached images`);
+    logger.info(`Cleared ${keysToRemove.length} old cached images`);
   } catch (error) {
-    console.error('Error clearing old cached images:', error);
+    logger.error('Error clearing old cached images', error instanceof Error ? error : undefined);
   }
 };
 

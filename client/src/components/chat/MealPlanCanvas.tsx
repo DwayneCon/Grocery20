@@ -37,6 +37,7 @@ import {
   getDayColor,
 } from '../../types/mealPlanCanvas';
 import { ParsedMeal } from '../../utils/mealParser';
+import { logger } from '../../utils/logger';
 
 interface MealPlanCanvasProps {
   /** Current week meal plan data */
@@ -75,7 +76,7 @@ export const MealPlanCanvas: React.FC<MealPlanCanvasProps> = ({
   const [selectedDay, setSelectedDay] = useState<DayName | null>(null);
 
   // Debug: Log weekPlan changes
-  console.log('[MealPlanCanvas] Received weekPlan:', {
+  logger.info('[MealPlanCanvas] Received weekPlan', {
     days: weekPlan.days.map(d => ({
       dayName: d.dayName,
       status: d.status,

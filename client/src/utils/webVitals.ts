@@ -1,9 +1,10 @@
 import type { Metric } from 'web-vitals';
+import { logger } from './logger';
 
 export function reportWebVitals(onReport?: (metric: Metric) => void) {
   import('web-vitals').then(({ onCLS, onFID, onLCP, onTTFB, onINP }) => {
     const report = onReport || ((metric: Metric) => {
-      console.log(`[WebVital] ${metric.name}: ${metric.value}`);
+      logger.info(`WebVital ${metric.name}: ${metric.value}`);
     });
     onCLS(report);
     onFID(report);

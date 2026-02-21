@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
 
 interface Recipe extends RowDataPacket {
   id: string;
@@ -15,20 +15,11 @@ interface Recipe extends RowDataPacket {
   difficulty: 'easy' | 'medium' | 'hard';
   cuisine: string;
   instructions: any;
-  nutrition_info: any;
+  nutrition: any;
   image_url: string;
   created_by: string;
   created_at: Date;
   updated_at: Date;
-}
-
-interface RecipeIngredient extends RowDataPacket {
-  id: string;
-  recipe_id: string;
-  ingredient_id: string;
-  amount: number;
-  unit: string;
-  notes: string;
 }
 
 // Helper to parse JSON fields
@@ -57,7 +48,6 @@ export const createRecipe = asyncHandler(async (req: AuthRequest, res: Response)
     ingredients,
     instructions,
     nutritionInfo,
-    tags,
     imageUrl,
   } = req.body;
 
@@ -71,7 +61,7 @@ export const createRecipe = asyncHandler(async (req: AuthRequest, res: Response)
   // Insert recipe
   await query(
     `INSERT INTO recipes
-    (id, name, description, prep_time, cook_time, servings, difficulty, cuisine, instructions, nutrition_info, image_url, created_by)
+    (id, name, description, prep_time, cook_time, servings, difficulty, cuisine, instructions, nutrition, image_url, created_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       recipeId,
@@ -111,8 +101,8 @@ export const createRecipe = asyncHandler(async (req: AuthRequest, res: Response)
 
       // Link ingredient to recipe
       await query(
-        'INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, amount, unit, notes) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuidv4(), recipeId, ingredientId, ingredient.amount, ingredient.unit, ingredient.notes || null]
+        'INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, notes) VALUES (?, ?, ?, ?, ?)',
+        [recipeId, ingredientId, ingredient.amount, ingredient.unit, ingredient.notes || null]
       );
     }
   }
@@ -172,7 +162,7 @@ export const getRecipes = asyncHandler(async (req: AuthRequest, res: Response) =
   const parsedRecipes = recipes.map((recipe) => ({
     ...recipe,
     instructions: parseJsonField(recipe.instructions, []),
-    nutrition_info: parseJsonField(recipe.nutrition_info, {}),
+    nutrition: parseJsonField(recipe.nutrition, {}),
   }));
 
   res.json({
@@ -198,7 +188,7 @@ export const getRecipe = asyncHandler(async (req: AuthRequest, res: Response) =>
   const ingredients = await query<RowDataPacket[]>(
     `SELECT
       ri.id,
-      ri.amount,
+      ri.quantity,
       ri.unit,
       ri.notes,
       i.name,
@@ -214,10 +204,10 @@ export const getRecipe = asyncHandler(async (req: AuthRequest, res: Response) =>
     recipe: {
       ...recipe,
       instructions: parseJsonField(recipe.instructions, []),
-      nutrition_info: parseJsonField(recipe.nutrition_info, {}),
+      nutrition: parseJsonField(recipe.nutrition, {}),
       ingredients: ingredients.map((ing) => ({
         name: ing.name,
-        amount: ing.amount,
+        amount: ing.quantity,
         unit: ing.unit,
         notes: ing.notes,
         category: ing.category,
@@ -293,7 +283,7 @@ export const updateRecipe = asyncHandler(async (req: AuthRequest, res: Response)
     params.push(JSON.stringify(instructions));
   }
   if (nutritionInfo !== undefined) {
-    updates.push('nutrition_info = ?');
+    updates.push('nutrition = ?');
     params.push(JSON.stringify(nutritionInfo));
   }
   if (imageUrl !== undefined) {
@@ -333,8 +323,8 @@ export const updateRecipe = asyncHandler(async (req: AuthRequest, res: Response)
       }
 
       await query(
-        'INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, amount, unit, notes) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuidv4(), recipeId, ingredientId, ingredient.amount, ingredient.unit, ingredient.notes || null]
+        'INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit, notes) VALUES (?, ?, ?, ?, ?)',
+        [recipeId, ingredientId, ingredient.amount, ingredient.unit, ingredient.notes || null]
       );
     }
   }
@@ -381,7 +371,7 @@ export const getMyRecipes = asyncHandler(async (req: AuthRequest, res: Response)
   const parsedRecipes = recipes.map((recipe) => ({
     ...recipe,
     instructions: parseJsonField(recipe.instructions, []),
-    nutrition_info: parseJsonField(recipe.nutrition_info, {}),
+    nutrition: parseJsonField(recipe.nutrition, {}),
     tags: parseJsonField(recipe.tags, []),
   }));
 
@@ -474,8 +464,8 @@ export const saveRecipeFromMeal = asyncHandler(async (req: AuthRequest, res: Res
 
       // Link ingredient to recipe
       await query(
-        'INSERT INTO recipe_ingredients (id, recipe_id, ingredient_id, quantity, unit) VALUES (?, ?, ?, ?, ?)',
-        [uuidv4(), recipeId, ingredientId, ingredient.amount || 1, ingredient.unit || 'piece']
+        'INSERT INTO recipe_ingredients (recipe_id, ingredient_id, quantity, unit) VALUES (?, ?, ?, ?)',
+        [recipeId, ingredientId, ingredient.amount || 1, ingredient.unit || 'piece']
       );
     }
   }

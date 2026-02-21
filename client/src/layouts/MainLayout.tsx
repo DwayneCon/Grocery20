@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Box, IconButton, Tooltip, useTheme as useMuiTheme, useMediaQuery } from '@mui/material';
 import {
@@ -27,9 +27,7 @@ const MainLayout = () => {
   const dispatch = useDispatch();
   const theme = useMuiTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [dockVisible, setDockVisible] = useState(true);
-  const [mouseNearBottom, setMouseNearBottom] = useState(false);
-  const [hoveringDock, setHoveringDock] = useState(false);
+  const [dockVisible] = useState(true);
 
   // Get token from Redux store
   const token = useSelector((state: RootState) => state.auth.token);
@@ -70,63 +68,12 @@ const MainLayout = () => {
     }
   };
 
-  // Auto-hide dock behavior (macOS style)
-  useEffect(() => {
-    let hideTimeout: NodeJS.Timeout;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const windowHeight = window.innerHeight;
-      const triggerZone = 150; // pixels from bottom to trigger show
-
-      // Check if mouse is near bottom of screen
-      if (windowHeight - e.clientY < triggerZone) {
-        setMouseNearBottom(true);
-        setDockVisible(true);
-        clearTimeout(hideTimeout);
-      } else {
-        setMouseNearBottom(false);
-        // Only hide if not hovering over dock
-        if (!hoveringDock) {
-          hideTimeout = setTimeout(() => {
-            setDockVisible(false);
-          }, 2000);
-        }
-      }
-    };
-
-    // On mobile, keep dock always visible
-    if (isMobile) {
-      setDockVisible(true);
-    } else {
-      window.addEventListener('mousemove', handleMouseMove);
-    }
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      clearTimeout(hideTimeout);
-    };
-  }, [isMobile, hoveringDock]);
-
-  // Hide dock when mouse leaves dock and is not in trigger zone
-  useEffect(() => {
-    let hideTimeout: NodeJS.Timeout;
-
-    if (!hoveringDock && !mouseNearBottom && !isMobile) {
-      hideTimeout = setTimeout(() => {
-        setDockVisible(false);
-      }, 1000);
-    }
-
-    return () => {
-      clearTimeout(hideTimeout);
-    };
-  }, [hoveringDock, mouseNearBottom, isMobile]);
 
   return (
     <Box sx={{ minHeight: '100vh', width: '100%', overflowX: 'hidden', position: 'relative', bgcolor: 'var(--bg-primary)' }}>
 
       {/* Content Area - Now Full Width */}
-      <Box component="main" sx={{ pb: { xs: 12, md: 16 }, width: '100%', px: 'var(--space-3)' }}>
+      <Box component="main" sx={{ pb: { xs: 9, md: 10 }, width: '100%', px: 'var(--space-3)' }}>
         <AnimatePresence mode='wait'>
           <motion.div
             key={location.pathname}
@@ -147,157 +94,97 @@ const MainLayout = () => {
         </AnimatePresence>
       </Box>
 
-      {/* Dock Indicator - Shows where dock is when hidden */}
-      {!dockVisible && !isMobile && (
-        <Box
-          component={motion.div}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          sx={{
-            position: 'fixed',
-            bottom: 8,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 999,
-            width: 40,
-            height: 4,
-            borderRadius: 'var(--radius-sm)',
-            bgcolor: 'rgba(255, 107, 53, 0.6)',
-            boxShadow: '0 0 20px rgba(255, 107, 53, 0.4)',
-            animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            '@keyframes pulse': {
-              '0%, 100%': {
-                opacity: 1,
-              },
-              '50%': {
-                opacity: 0.5,
-              },
-            },
-          }}
-        />
-      )}
-
-      {/* Responsive Floating Dock - Auto-hide */}
-      <AnimatePresence>
-        {dockVisible && (
-          <Box
-            component={motion.div}
-            initial={{ y: 120, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 120, opacity: 0 }}
-            transition={springs.snappy}
-            sx={{
-              position: 'fixed',
-              bottom: { xs: 24, md: 40 },
-              left: '50%',
-              zIndex: 1000,
-              display: 'flex',
-              justifyContent: 'center',
-            }}
-          >
-        <GlassCard
-          intensity="strong"
-          hover={false}
-          onMouseEnter={() => setHoveringDock(true)}
-          onMouseLeave={() => setHoveringDock(false)}
-          sx={{
-            p: 'var(--space-2)',
-            borderRadius: 'var(--radius-full)',
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: { xs: 1, md: 2 },
-            boxShadow: 'var(--shadow-elevated)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(25px)',
-            background: 'rgba(26, 29, 46, 0.7)',
-            transform: 'translateX(-50%)',
-            width: 'fit-content',
-            maxWidth: { xs: '95vw', md: '800px' },
-          }}
-        >
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Tooltip key={item.text} title={item.text} placement="top" arrow>
-                <Box
-                  component={motion.div}
-                  whileHover={{ scale: 1.08, y: -4 }}
-                  whileTap={{ scale: 0.95 }}
-                  transition={springs.bouncy}
-                  sx={{ position: 'relative' }}
+      {/* Floating Dock Navigation */}
+      <Box
+        component={motion.div}
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={springs.snappy}
+        sx={{
+          position: 'fixed',
+          bottom: { xs: 12, md: 16 },
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: { xs: 0.5, md: 1.5 },
+          px: { xs: 1.5, md: 2.5 },
+          py: { xs: 1, md: 1.5 },
+          borderRadius: '999px',
+          background: 'rgba(20, 22, 35, 0.85)',
+          backdropFilter: 'blur(40px) saturate(200%)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+        }}
+      >
+        {menuItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          return (
+            <Tooltip key={item.text} title={item.text} placement="top" arrow>
+              <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <IconButton
+                  onClick={() => navigate(item.path)}
+                  size={isMobile ? "small" : "medium"}
+                  sx={{
+                    color: isActive ? 'var(--chef-orange)' : 'rgba(255,255,255,0.5)',
+                    bgcolor: isActive ? 'rgba(255, 107, 53, 0.15)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                    '&:hover': {
+                      color: 'var(--chef-orange)',
+                      bgcolor: 'rgba(255, 107, 53, 0.1)',
+                    }
+                  }}
+                  aria-label={item.text}
                 >
-                  <IconButton
-                    onClick={() => navigate(item.path)}
-                    size={isMobile ? "medium" : "large"}
+                  {item.icon}
+                </IconButton>
+
+                {isActive && (
+                  <Box
+                    component={motion.div}
+                    layoutId="activeNav"
+                    transition={springs.bouncy}
                     sx={{
-                      color: isActive ? 'var(--chef-orange)' : 'rgba(255,255,255,0.5)',
-                      bgcolor: isActive ? 'rgba(255, 107, 53, 0.15)' : 'transparent',
-                      transition: 'all var(--transition-normal)',
-                      '&:hover': {
-                        color: 'var(--chef-orange)',
-                        bgcolor: 'rgba(255, 107, 53, 0.1)',
-                        transform: 'scale(1.05)',
-                      }
+                      position: 'absolute',
+                      bottom: -2,
+                      left: '50%',
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      bgcolor: 'var(--chef-orange)',
+                      boxShadow: '0 0 8px var(--chef-orange)',
+                      transform: 'translateX(-50%)',
                     }}
-                    aria-label={item.text}
-                  >
-                    {item.icon}
-                  </IconButton>
+                  />
+                )}
+              </Box>
+            </Tooltip>
+          );
+        })}
 
-                  {/* Active Dot Indicator */}
-                  {isActive && (
-                    <Box
-                      component={motion.div}
-                      layoutId="activeNav"
-                      transition={springs.bouncy}
-                      sx={{
-                        position: 'absolute',
-                        bottom: -4,
-                        left: '50%',
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        bgcolor: 'var(--chef-orange)',
-                        boxShadow: '0 0 8px var(--chef-orange)',
-                        transform: 'translateX(-50%)'
-                      }}
-                    />
-                  )}
-                </Box>
-              </Tooltip>
-            );
-          })}
+        <Box sx={{ width: '1px', height: 24, bgcolor: 'rgba(255,255,255,0.12)', mx: { xs: 0.25, md: 0.5 }, flexShrink: 0 }} />
 
-          <Box sx={{ width: 1, height: 32, bgcolor: 'rgba(255,255,255,0.1)', mx: { xs: 0.5, md: 1 } }} />
+        <AccessibilityMenu />
 
-          {/* Accessibility Menu */}
-          <AccessibilityMenu />
-
-          <Tooltip title="Logout" placement="top" arrow>
-            <Box component={motion.div} whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }}>
-              <IconButton
-                onClick={handleLogout}
-                sx={{
-                  color: 'var(--error)',
-                  transition: 'all var(--transition-normal)',
-                  '&:hover': {
-                    bgcolor: 'var(--error-bg)',
-                    transform: 'scale(1.05)',
-                  }
-                }}
-                aria-label="Logout"
-              >
-                <LogoutIcon />
-              </IconButton>
-            </Box>
-          </Tooltip>
-        </GlassCard>
-          </Box>
-        )}
-      </AnimatePresence>
+        <Tooltip title="Logout" placement="top" arrow>
+          <IconButton
+            onClick={handleLogout}
+            size={isMobile ? "small" : "medium"}
+            sx={{
+              color: 'var(--error)',
+              transition: 'all 0.2s ease',
+              '&:hover': {
+                bgcolor: 'var(--error-bg)',
+              }
+            }}
+            aria-label="Logout"
+          >
+            <LogoutIcon />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 };

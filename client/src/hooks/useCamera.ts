@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import { logger } from '../utils/logger';
 
 export function useCamera() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -17,7 +18,7 @@ export function useCamera() {
       setStream(mediaStream);
       setIsActive(true);
     } catch (err) {
-      console.error('Camera access denied:', err);
+      logger.error('Camera access denied', err instanceof Error ? err : undefined);
       throw err;
     }
   }, []);

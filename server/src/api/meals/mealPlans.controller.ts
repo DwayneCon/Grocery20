@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
 
 interface MealPlan extends RowDataPacket {
   id: string;
@@ -11,33 +11,10 @@ interface MealPlan extends RowDataPacket {
   week_start: Date;
   week_end: Date;
   budget: number;
-  status: 'active' | 'completed' | 'archived';
+  status: 'draft' | 'approved' | 'completed';
   created_by: string;
   created_at: Date;
 }
-
-interface MealPlanMeal extends RowDataPacket {
-  id: string;
-  meal_plan_id: string;
-  recipe_id: string;
-  day_of_week: number;
-  meal_type: string;
-  servings: number;
-  notes: string;
-}
-
-// Helper to parse JSON fields
-const parseJsonField = (field: any, defaultValue: any): any => {
-  if (typeof field === 'object' && field !== null) return field;
-  if (typeof field === 'string') {
-    try {
-      return JSON.parse(field);
-    } catch {
-      return defaultValue;
-    }
-  }
-  return defaultValue;
-};
 
 // Create meal plan
 export const createMealPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -60,19 +37,19 @@ export const createMealPlan = asyncHandler(async (req: AuthRequest, res: Respons
   // Create meal plan
   await query(
     'INSERT INTO meal_plans (id, household_id, week_start, week_end, budget, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [mealPlanId, householdId, weekStart, weekEnd || null, budget || null, 'active', userId]
+    [mealPlanId, householdId, weekStart, weekEnd || null, budget || null, 'approved', userId]
   );
 
   // Add meals if provided
   if (meals && meals.length > 0) {
     for (const meal of meals) {
       await query(
-        'INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, day_of_week, meal_type, servings, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, meal_date, meal_type, servings, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [
           uuidv4(),
           mealPlanId,
           meal.recipeId || null,
-          meal.dayOfWeek,
+          meal.mealDate || meal.dayOfWeek,
           meal.mealType,
           meal.servings || null,
           meal.notes || null,
@@ -178,17 +155,18 @@ export const getMealPlan = asyncHandler(async (req: AuthRequest, res: Response) 
     FROM meal_plan_meals mpm
     LEFT JOIN recipes r ON mpm.recipe_id = r.id
     WHERE mpm.meal_plan_id = ?
-    ORDER BY mpm.day_of_week, mpm.meal_type`,
+    ORDER BY mpm.meal_date, mpm.meal_type`,
     [mealPlanId]
   );
 
   // Group meals by day
-  const groupedMeals: { [key: number]: any[] } = {};
+  const groupedMeals: { [key: string]: any[] } = {};
   meals.forEach((meal) => {
-    if (!groupedMeals[meal.day_of_week]) {
-      groupedMeals[meal.day_of_week] = [];
+    const dateKey = typeof meal.meal_date === 'object' ? (meal.meal_date as Date).toISOString().split('T')[0] : String(meal.meal_date);
+    if (!groupedMeals[dateKey]) {
+      groupedMeals[dateKey] = [];
     }
-    groupedMeals[meal.day_of_week].push(meal);
+    groupedMeals[dateKey].push(meal);
   });
 
   res.json({
@@ -289,8 +267,9 @@ export const deleteMealPlan = asyncHandler(async (req: AuthRequest, res: Respons
 // Add meal to plan
 export const addMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { mealPlanId } = req.params;
-  const { recipeId, dayOfWeek, mealType, servings, notes } = req.body;
+  const { recipeId, mealDate, dayOfWeek, mealType, servings, notes } = req.body;
   const userId = req.user?.id;
+  const resolvedMealDate = mealDate || dayOfWeek;
 
   const plans = await query<MealPlan[]>('SELECT * FROM meal_plans WHERE id = ?', [mealPlanId]);
 
@@ -316,8 +295,8 @@ export const addMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
   const mealId = uuidv4();
 
   await query(
-    'INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, day_of_week, meal_type, servings, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [mealId, mealPlanId, recipeId || null, dayOfWeek, mealType, servings || null, notes || null]
+    'INSERT INTO meal_plan_meals (id, meal_plan_id, recipe_id, meal_date, meal_type, servings, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [mealId, mealPlanId, recipeId || null, resolvedMealDate, mealType, servings || null, notes || null]
   );
 
   res.status(201).json({
@@ -326,7 +305,7 @@ export const addMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
       id: mealId,
       mealPlanId,
       recipeId,
-      dayOfWeek,
+      mealDate: resolvedMealDate,
       mealType,
       servings,
       notes,
@@ -337,7 +316,7 @@ export const addMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
 // Update meal
 export const updateMeal = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { mealId } = req.params;
-  const { recipeId, dayOfWeek, mealType, servings, notes } = req.body;
+  const { recipeId, mealDate, dayOfWeek, mealType, servings, notes } = req.body;
   const userId = req.user?.id;
 
   const meals = await query<RowDataPacket[]>(
@@ -364,9 +343,10 @@ export const updateMeal = asyncHandler(async (req: AuthRequest, res: Response) =
     params.push(recipeId);
   }
 
-  if (dayOfWeek !== undefined) {
-    updates.push('day_of_week = ?');
-    params.push(dayOfWeek);
+  const resolvedMealDate = mealDate !== undefined ? mealDate : dayOfWeek;
+  if (resolvedMealDate !== undefined) {
+    updates.push('meal_date = ?');
+    params.push(resolvedMealDate);
   }
 
   if (mealType !== undefined) {
@@ -425,7 +405,7 @@ export const deleteMeal = asyncHandler(async (req: AuthRequest, res: Response) =
 });
 
 // Get current week's meal plan
-export const getCurrentWeekPlan = asyncHandler(async (req: AuthRequest, res: Response) => {
+export const getCurrentWeekPlan = asyncHandler(async (req: AuthRequest, res: Response): Promise<any> => {
   const { householdId } = req.params;
   const userId = req.user?.id;
 
@@ -442,7 +422,7 @@ export const getCurrentWeekPlan = asyncHandler(async (req: AuthRequest, res: Res
     WHERE household_id = ?
     AND week_start <= CURDATE()
     AND (week_end >= CURDATE() OR week_end IS NULL)
-    AND status = 'active'
+    AND status = 'approved'
     ORDER BY week_start DESC
     LIMIT 1`,
     [householdId]
@@ -470,17 +450,18 @@ export const getCurrentWeekPlan = asyncHandler(async (req: AuthRequest, res: Res
     FROM meal_plan_meals mpm
     LEFT JOIN recipes r ON mpm.recipe_id = r.id
     WHERE mpm.meal_plan_id = ?
-    ORDER BY mpm.day_of_week, mpm.meal_type`,
+    ORDER BY mpm.meal_date, mpm.meal_type`,
     [plan.id]
   );
 
   // Group meals by day
-  const groupedMeals: { [key: number]: any[] } = {};
+  const groupedMeals: { [key: string]: any[] } = {};
   meals.forEach((meal) => {
-    if (!groupedMeals[meal.day_of_week]) {
-      groupedMeals[meal.day_of_week] = [];
+    const dateKey = typeof meal.meal_date === 'object' ? (meal.meal_date as Date).toISOString().split('T')[0] : String(meal.meal_date);
+    if (!groupedMeals[dateKey]) {
+      groupedMeals[dateKey] = [];
     }
-    groupedMeals[meal.day_of_week].push(meal);
+    groupedMeals[dateKey].push(meal);
   });
 
   res.json({

@@ -3,6 +3,7 @@ import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../../config/database.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Add item to household inventory
@@ -52,7 +53,7 @@ export const addInventoryItem = asyncHandler(async (req: AuthRequest, res: Respo
       itemId,
     });
   } catch (error) {
-    console.error('Error adding inventory item:', error);
+    logger.error('Error adding inventory item:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to add inventory item',
@@ -123,7 +124,7 @@ export const getHouseholdInventory = asyncHandler(async (req: AuthRequest, res: 
       data: items,
     });
   } catch (error) {
-    console.error('Error getting household inventory:', error);
+    logger.error('Error getting household inventory:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get household inventory',
@@ -184,7 +185,7 @@ export const getExpiringSoon = asyncHandler(async (req: AuthRequest, res: Respon
       count: items.length,
     });
   } catch (error) {
-    console.error('Error getting expiring items:', error);
+    logger.error('Error getting expiring items:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get expiring items',
@@ -284,7 +285,7 @@ export const updateInventoryItem = asyncHandler(async (req: AuthRequest, res: Re
       data: updated[0],
     });
   } catch (error) {
-    console.error('Error updating inventory item:', error);
+    logger.error('Error updating inventory item:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to update inventory item',
@@ -325,7 +326,7 @@ export const deleteInventoryItem = asyncHandler(async (req: AuthRequest, res: Re
       message: 'Inventory item deleted successfully',
     });
   } catch (error) {
-    console.error('Error deleting inventory item:', error);
+    logger.error('Error deleting inventory item:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to delete inventory item',
@@ -397,7 +398,7 @@ export const getInventoryStats = asyncHandler(async (req: AuthRequest, res: Resp
       },
     });
   } catch (error) {
-    console.error('Error getting inventory stats:', error);
+    logger.error('Error getting inventory stats:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to get inventory statistics',
@@ -455,7 +456,7 @@ export const markExpiredItems = asyncHandler(async (req: AuthRequest, res: Respo
       markedExpired: result.affectedRows || 0,
     });
   } catch (error) {
-    console.error('Error marking expired items:', error);
+    logger.error('Error marking expired items:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to mark expired items',
