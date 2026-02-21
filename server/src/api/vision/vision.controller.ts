@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../types/auth.js';
 import { asyncHandler } from '../../middleware/errorHandler.js';
-import { scanReceipt } from '../../services/vision/receiptScanner.js';
+import { scanReceipt, scanFridge } from '../../services/vision/receiptScanner.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -56,9 +56,7 @@ export const scanReceiptImage = asyncHandler(async (req: AuthRequest, res: Respo
  * Scan a fridge image and identify ingredients, then suggest meals.
  * POST /api/vision/fridge
  *
- * Body: { image: string } - base64-encoded image
- *
- * NOTE: Placeholder for Task 17 - Fridge scanning feature.
+ * Body: { image: string } - base64-encoded image (data URL or raw base64)
  */
 export const scanFridgeImage = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { image } = req.body;
@@ -70,19 +68,25 @@ export const scanFridgeImage = asyncHandler(async (req: AuthRequest, res: Respon
     });
   }
 
+  // Basic validation: check that the string looks like base64 image data
+  if (!image.startsWith('data:image/') && image.length < 100) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid image data. Provide a valid base64-encoded image.',
+    });
+  }
+
   try {
     logger.info('Fridge scan requested', {
       userId: req.user?.id,
+      metadata: { imageSize: image.length },
     });
 
-    // Placeholder response - full implementation in Task 17
+    const fridgeData = await scanFridge(image);
+
     return res.json({
       success: true,
-      message: 'Fridge scanning feature coming soon!',
-      data: {
-        ingredients: [],
-        suggestedMeals: [],
-      },
+      data: fridgeData,
     });
   } catch (error) {
     logger.error('Fridge scan failed', error as Error, {

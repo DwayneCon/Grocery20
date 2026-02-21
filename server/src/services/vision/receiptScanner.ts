@@ -173,4 +173,271 @@ If you cannot read certain values, use your best estimate. Always return valid J
   }
 }
 
-export default { scanReceipt };
+/**
+ * Represents a single ingredient identified from a fridge/pantry photo
+ */
+export interface FridgeIngredient {
+  name: string;
+  quantity: string;
+  condition: 'fresh' | 'aging' | 'expired';
+}
+
+/**
+ * A quick meal suggestion based on identified fridge ingredients
+ */
+export interface MealSuggestion {
+  name: string;
+  ingredients: string[];
+  cookTime: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  description: string;
+}
+
+/**
+ * Structured data returned from a fridge scan
+ */
+export interface FridgeScanData {
+  ingredients: FridgeIngredient[];
+  mealSuggestions: MealSuggestion[];
+}
+
+/**
+ * Validates that parsed fridge ingredient data conforms to the expected structure.
+ */
+function validateFridgeIngredients(data: any): FridgeIngredient[] {
+  if (!Array.isArray(data)) {
+    throw new Error('Fridge ingredients data is not an array');
+  }
+
+  const validConditions = ['fresh', 'aging', 'expired'];
+  const ingredients: FridgeIngredient[] = [];
+
+  for (const item of data) {
+    if (item && typeof item === 'object' && typeof item.name === 'string') {
+      ingredients.push({
+        name: item.name,
+        quantity: typeof item.quantity === 'string' ? item.quantity : String(item.quantity || 'unknown'),
+        condition: validConditions.includes(item.condition) ? item.condition : 'fresh',
+      });
+    }
+  }
+
+  return ingredients;
+}
+
+/**
+ * Validates that parsed meal suggestion data conforms to the expected structure.
+ */
+function validateMealSuggestions(data: any): MealSuggestion[] {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  const validDifficulties = ['easy', 'medium', 'hard'];
+  const suggestions: MealSuggestion[] = [];
+
+  for (const item of data) {
+    if (item && typeof item === 'object' && typeof item.name === 'string') {
+      suggestions.push({
+        name: item.name,
+        ingredients: Array.isArray(item.ingredients)
+          ? item.ingredients.filter((i: any) => typeof i === 'string')
+          : [],
+        cookTime: typeof item.cookTime === 'string' ? item.cookTime : '30 minutes',
+        difficulty: validDifficulties.includes(item.difficulty) ? item.difficulty : 'easy',
+        description: typeof item.description === 'string' ? item.description : '',
+      });
+    }
+  }
+
+  return suggestions;
+}
+
+/**
+ * Strips markdown code fences from a JSON response string if present.
+ */
+function stripCodeFences(text: string): string {
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+  }
+  return cleaned;
+}
+
+/**
+ * Scans a fridge or pantry image using OpenAI GPT-4 Vision, identifies visible
+ * food items with condition estimates, then generates quick meal suggestions
+ * based on those ingredients.
+ *
+ * @param base64Image - The fridge/pantry image encoded as a base64 data URL or raw base64
+ * @returns Identified ingredients and 3 meal suggestions
+ */
+export async function scanFridge(base64Image: string): Promise<FridgeScanData> {
+  if (!config.openai.apiKey) {
+    throw new Error('OpenAI API key is not configured. Fridge scanning requires GPT-4 Vision.');
+  }
+
+  // Ensure proper data URL format
+  let imageUrl = base64Image;
+  if (!imageUrl.startsWith('data:')) {
+    imageUrl = `data:image/jpeg;base64,${imageUrl}`;
+  }
+
+  // ---- Step 1: Identify ingredients from the fridge photo ----
+  const identifyPrompt = `Identify all food items visible in this refrigerator/pantry photo. For each item estimate: name, approximate quantity, condition (fresh/aging/expired). Return ONLY valid JSON with no additional text, as an array in this exact format:
+[
+  { "name": "Milk", "quantity": "1 gallon, half full", "condition": "fresh" },
+  { "name": "Lettuce", "quantity": "1 head", "condition": "aging" }
+]
+
+Conditions:
+- "fresh" = looks good, normal appearance
+- "aging" = starting to wilt, discolor, or nearing expiration
+- "expired" = visibly spoiled, moldy, or clearly past use
+
+Be thorough - identify every visible food item. If you cannot clearly see an item, make your best guess. Always return valid JSON.`;
+
+  logger.info('Scanning fridge with GPT-4 Vision - identifying ingredients');
+
+  let ingredients: FridgeIngredient[];
+
+  try {
+    const identifyResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: identifyPrompt },
+            {
+              type: 'image_url',
+              image_url: {
+                url: imageUrl,
+                detail: 'high',
+              },
+            },
+          ],
+        },
+      ],
+      max_tokens: 4096,
+      temperature: 0.2,
+    });
+
+    const identifyContent = identifyResponse.choices[0]?.message?.content;
+
+    if (!identifyContent) {
+      throw new Error('No response content received from OpenAI Vision API for ingredient identification');
+    }
+
+    logger.debug('Fridge scan ingredient response received');
+
+    const jsonString = stripCodeFences(identifyContent);
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (parseError) {
+      logger.error('Failed to parse fridge ingredients JSON from Vision API', parseError as Error, {
+        metadata: { rawContent: identifyContent.substring(0, 500) },
+      });
+      throw new Error('Failed to parse fridge scan data. The image may be unclear.');
+    }
+
+    ingredients = validateFridgeIngredients(parsed);
+
+    logger.info('Fridge ingredients identified successfully', {
+      metadata: { ingredientCount: ingredients.length },
+    });
+  } catch (error) {
+    if (error instanceof Error && (
+      error.message.includes('Failed to parse') ||
+      error.message.includes('OpenAI API key')
+    )) {
+      throw error;
+    }
+    logger.error('Fridge ingredient identification failed', error as Error);
+    throw new Error(
+      `Fridge scanning failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+
+  // If no ingredients found, return early with empty suggestions
+  if (ingredients.length === 0) {
+    return { ingredients: [], mealSuggestions: [] };
+  }
+
+  // ---- Step 2: Generate meal suggestions from the identified ingredients ----
+  const usableIngredients = ingredients
+    .filter(i => i.condition !== 'expired')
+    .map(i => i.name);
+
+  if (usableIngredients.length === 0) {
+    return { ingredients, mealSuggestions: [] };
+  }
+
+  const mealPrompt = `Based on these available ingredients: ${usableIngredients.join(', ')}
+
+Suggest exactly 3 quick meals that can be made primarily with these ingredients (you may assume basic pantry staples like salt, pepper, oil, butter, garlic are available). Return ONLY valid JSON with no additional text, in this exact format:
+[
+  {
+    "name": "Meal Name",
+    "ingredients": ["ingredient1", "ingredient2"],
+    "cookTime": "20 minutes",
+    "difficulty": "easy",
+    "description": "A brief one-sentence description of the meal."
+  }
+]
+
+Difficulty should be one of: easy, medium, hard. Always return valid JSON.`;
+
+  logger.info('Generating meal suggestions from fridge ingredients');
+
+  let mealSuggestions: MealSuggestion[];
+
+  try {
+    const mealResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'user', content: mealPrompt },
+      ],
+      max_tokens: 2048,
+      temperature: 0.7,
+    });
+
+    const mealContent = mealResponse.choices[0]?.message?.content;
+
+    if (!mealContent) {
+      logger.warn('No meal suggestion response received, returning empty suggestions');
+      mealSuggestions = [];
+    } else {
+      const mealJsonString = stripCodeFences(mealContent);
+
+      try {
+        const mealParsed = JSON.parse(mealJsonString);
+        mealSuggestions = validateMealSuggestions(mealParsed);
+      } catch (parseError) {
+        logger.warn('Failed to parse meal suggestions JSON, returning empty suggestions', {
+          metadata: { rawContent: mealContent.substring(0, 500) },
+        });
+        mealSuggestions = [];
+      }
+    }
+  } catch (error) {
+    // Meal suggestions are non-critical - log and continue with empty array
+    logger.warn('Meal suggestion generation failed, returning ingredients only', {
+      metadata: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
+    mealSuggestions = [];
+  }
+
+  logger.info('Fridge scan completed', {
+    metadata: {
+      ingredientCount: ingredients.length,
+      mealSuggestionCount: mealSuggestions.length,
+    },
+  });
+
+  return { ingredients, mealSuggestions };
+}
+
+export default { scanReceipt, scanFridge };
