@@ -8,6 +8,7 @@ import * as Sentry from '@sentry/react';
 import App from './App';
 import { store } from './features/store';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SocketProvider } from './contexts/SocketContext';
 import { logger } from './utils/logger';
 import { reportWebVitals } from './utils/webVitals';
 import './styles/design-tokens.css';
@@ -36,14 +37,16 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <BrowserRouter>
-            <CssBaseline />
-            <App />
-          </BrowserRouter>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <SocketProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <BrowserRouter>
+              <CssBaseline />
+              <App />
+            </BrowserRouter>
+          </ThemeProvider>
+        </QueryClientProvider>
+      </SocketProvider>
     </Provider>
   </React.StrictMode>
 );
