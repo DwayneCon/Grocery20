@@ -45,6 +45,7 @@ import achievementsRoutes from './api/achievements/achievements.routes.js';
 import suggestionsRoutes from './api/suggestions/suggestions.routes.js';
 import ttsRoutes from './api/ai/tts.routes.js';
 import visionRoutes from './api/vision/vision.routes.js';
+import gamificationRoutes from './api/gamification/gamification.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -129,6 +130,7 @@ app.use('/api/achievements', achievementsRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
 app.use('/api/ai/tts', ttsRoutes);
 app.use('/api/vision', visionRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
