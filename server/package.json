@@ -21,6 +21,7 @@
   "author": "Dwayne Concepcion",
   "license": "ISC",
   "dependencies": {
+    "@sentry/node": "^10.39.0",
     "@types/nodemailer": "^7.0.4",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",

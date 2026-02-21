@@ -38,11 +38,32 @@ export const config = {
     fallbackModel: process.env.OPENAI_FALLBACK_MODEL || 'gpt-3.5-turbo',
   },
 
+  // Kroger API
+  kroger: {
+    clientId: process.env.KROGER_CLIENT_ID || '',
+    clientSecret: process.env.KROGER_CLIENT_SECRET || '',
+    baseUrl: process.env.KROGER_API_BASE_URL || 'https://api.kroger.com/v1',
+  },
+
   // Security
   security: {
     encryptionKey: process.env.ENCRYPTION_KEY || 'default-encryption-key',
     rateLimitWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'),
     rateLimitMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'),
+  },
+
+  // Sentry
+  sentry: {
+    dsn: process.env.SENTRY_DSN || '',
+  },
+
+  // SMTP
+  smtp: {
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_FROM || 'nora@grocery20.com',
   },
 
   // CORS
@@ -53,12 +74,89 @@ export const config = {
 
 // Validate required environment variables
 export const validateEnv = (): void => {
-  const required = ['JWT_SECRET', 'DB_PASSWORD'];
+  const isProduction = config.nodeEnv === 'production';
+  const errors: string[] = [];
+  const warnings: string[] = [];
 
-  const missing = required.filter(key => !process.env[key]);
+  // Required variables that must be set
+  const requiredVars = [
+    'JWT_SECRET',
+    'JWT_REFRESH_SECRET',
+    'SESSION_SECRET',
+    'DB_PASSWORD',
+    'ENCRYPTION_KEY',
+  ];
 
-  if (missing.length > 0 && config.nodeEnv === 'production') {
-    console.warn(`⚠️  Missing required environment variables: ${missing.join(', ')}`);
+  // Check for missing required variables
+  const missing = requiredVars.filter(key => !process.env[key] || process.env[key]?.trim() === '');
+  if (missing.length > 0) {
+    if (isProduction) {
+      errors.push(`Missing required environment variables: ${missing.join(', ')}`);
+    } else {
+      warnings.push(`Missing environment variables (using defaults): ${missing.join(', ')}`);
+    }
+  }
+
+  // Weak/default secrets that are security risks
+  const weakSecrets = [
+    { key: 'JWT_SECRET', weak: ['default-secret-change-in-production', 'secret', 'test'] },
+    { key: 'JWT_REFRESH_SECRET', weak: ['default-refresh-secret', 'secret', 'test'] },
+    { key: 'SESSION_SECRET', weak: ['default-session-secret', 'secret', 'test'] },
+    { key: 'ENCRYPTION_KEY', weak: ['default-encryption-key', 'key', 'test'] },
+    { key: 'DB_PASSWORD', weak: ['', 'password', 'admin', 'root', '123456'] },
+  ];
+
+  for (const { key, weak } of weakSecrets) {
+    const value = process.env[key];
+    if (value && weak.includes(value.toLowerCase())) {
+      if (isProduction) {
+        errors.push(`Weak/default value for ${key}. Must use a strong secret in production.`);
+      } else {
+        warnings.push(`Weak value for ${key} (acceptable in development).`);
+      }
+    }
+  }
+
+  // Validate secret length (minimum 32 characters in production)
+  const secretVars = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'SESSION_SECRET', 'ENCRYPTION_KEY'];
+  for (const key of secretVars) {
+    const value = process.env[key];
+    if (value && value.length < 32) {
+      if (isProduction) {
+        errors.push(`${key} must be at least 32 characters long in production (current: ${value.length}).`);
+      } else {
+        warnings.push(`${key} is shorter than recommended 32 characters (current: ${value.length}).`);
+      }
+    }
+  }
+
+  // Check for OpenAI API key in production
+  if (isProduction && !process.env.OPENAI_API_KEY) {
+    errors.push('OPENAI_API_KEY is required for AI features in production.');
+  }
+
+  // Log warnings
+  if (warnings.length > 0) {
+    console.warn('\n⚠️  Environment Configuration Warnings:');
+    warnings.forEach(warning => console.warn(`   - ${warning}`));
+    console.warn('');
+  }
+
+  // Throw errors in production to prevent startup
+  if (errors.length > 0) {
+    console.error('\n❌ Environment Configuration Errors:');
+    errors.forEach(error => console.error(`   - ${error}`));
+    console.error('\n💡 Production deployment requires all secrets to be set and strong.');
+    console.error('   Please update your .env file or environment variables.\n');
+
+    if (isProduction) {
+      throw new Error('Invalid environment configuration. Server cannot start in production with weak/missing secrets.');
+    }
+  }
+
+  // Success message
+  if (isProduction && errors.length === 0) {
+    console.log('✅ Environment configuration validated successfully.');
   }
 };
 
