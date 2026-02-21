@@ -1,13 +1,14 @@
 /* client/src/pages/ChatPage.tsx */
 import { useState, useRef, useEffect } from 'react';
-import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar, Tooltip, Fab, useMediaQuery, useTheme as useMuiTheme } from '@mui/material';
-import { Send, Person, Mic, MicOff, CalendarMonth, VolumeUp, VolumeOff } from '@mui/icons-material';
+import { Box, TextField, IconButton, List, ListItem, Avatar, Typography, CircularProgress, Alert, Snackbar, Tooltip, Fab, Button, useMediaQuery, useTheme as useMuiTheme } from '@mui/material';
+import { Send, Person, Mic, MicOff, CalendarMonth, VolumeUp, VolumeOff, Restaurant } from '@mui/icons-material';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
 import NoraAvatar from '../components/common/NoraAvatar';
 import MealPlanCanvas from '../components/chat/MealPlanCanvas';
+import CookingMode, { CookingRecipe } from '../components/voice/CookingMode';
 import { sanitizeAIContent, sanitizeInput } from '../utils/sanitize';
 import { aiService } from '../services/aiService';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
@@ -17,7 +18,7 @@ import MealPlanDisplay from '../components/chat/MealPlanDisplay';
 import { useTTS } from '../hooks/useTTS';
 import { useTheme } from '../contexts/ThemeContext';
 import { RootState } from '../features/store';
-import { parseMealPlan, isMealPlan } from '../utils/mealParser';
+import { parseMealPlan, isMealPlan, ParsedMeal } from '../utils/mealParser';
 import { logger } from '../utils/logger';
 import { generateChatWelcomeMessage, generateContextualPrompts } from '../utils/contextualMessages';
 import { createEmptyWeekPlan, DayName, calculateCompletion } from '../types/mealPlanCanvas';
@@ -65,6 +66,10 @@ const ChatPage = () => {
   const [weekPlan, setWeekPlan] = useState(createEmptyWeekPlan());
   const [canvasVisible, setCanvasVisible] = useState(!isMobile); // Default visible on desktop
   const [selectedDay, setSelectedDay] = useState<DayName | null>(null);
+
+  // Cooking mode state
+  const [cookingModeActive, setCookingModeActive] = useState(false);
+  const [cookingRecipe, setCookingRecipe] = useState<CookingRecipe | null>(null);
 
   // Voice recognition
   const {
@@ -418,6 +423,17 @@ const ChatPage = () => {
     setError(message);
   };
 
+  const handleStartCooking = (recipe: CookingRecipe) => {
+    logger.info('Starting cooking mode', { metadata: { recipeName: recipe.name } });
+    setCookingRecipe(recipe);
+    setCookingModeActive(true);
+  };
+
+  const handleCloseCookingMode = () => {
+    setCookingModeActive(false);
+    setCookingRecipe(null);
+  };
+
   // Canvas handlers
   const handleDaySelect = (dayName: DayName) => {
     logger.info('Day selected in canvas', { metadata: { dayName } });
@@ -584,6 +600,55 @@ const ChatPage = () => {
                             onDayApproved={handleDayApproved}
                             onMealAccepted={handleMealAccepted}
                           />
+                          {/* Start Cooking buttons for recipes with instructions */}
+                          {(() => {
+                            const plan = parseMealPlan(message.text);
+                            const recipesWithInstructions = plan.meals.filter(
+                              (m) => m.instructions && m.instructions.length > 0
+                            );
+                            if (recipesWithInstructions.length === 0) return null;
+                            return (
+                              <Box sx={{ mt: 3, display: 'flex', flexWrap: 'wrap', gap: 1.5, justifyContent: 'center' }}>
+                                {recipesWithInstructions.map((meal, idx) => (
+                                  <Button
+                                    key={`cook-${idx}-${meal.name}`}
+                                    variant="outlined"
+                                    size="small"
+                                    startIcon={<Restaurant />}
+                                    onClick={() =>
+                                      handleStartCooking({
+                                        name: meal.name,
+                                        instructions: meal.instructions!,
+                                        ingredients: meal.ingredients,
+                                        prepTime: meal.prepTime,
+                                        cookTime: meal.cookTime,
+                                        servings: meal.servings,
+                                      })
+                                    }
+                                    sx={{
+                                      borderColor: 'var(--chef-orange)',
+                                      color: 'var(--chef-orange)',
+                                      fontWeight: 600,
+                                      fontSize: '0.8rem',
+                                      textTransform: 'none',
+                                      borderRadius: 'var(--radius-full)',
+                                      px: 2,
+                                      transition: 'all 0.2s ease',
+                                      '&:hover': {
+                                        borderColor: 'var(--chef-orange)',
+                                        bgcolor: 'rgba(255, 107, 53, 0.1)',
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: '0 4px 12px rgba(255, 107, 53, 0.2)',
+                                      },
+                                    }}
+                                    aria-label={`Start cooking ${meal.name}`}
+                                  >
+                                    Cook: {meal.name.length > 25 ? meal.name.substring(0, 25) + '...' : meal.name}
+                                  </Button>
+                                ))}
+                              </Box>
+                            );
+                          })()}
                         </Box>
                       )}
 
@@ -902,6 +967,15 @@ const ChatPage = () => {
           </Fab>
         </Tooltip>
       )}
+      {/* Cooking Mode Overlay */}
+      <AnimatePresence>
+        {cookingModeActive && cookingRecipe && (
+          <CookingMode
+            recipe={cookingRecipe}
+            onClose={handleCloseCookingMode}
+          />
+        )}
+      </AnimatePresence>
     </AuroraBackground>
   );
 };
