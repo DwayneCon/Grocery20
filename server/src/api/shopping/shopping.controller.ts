@@ -3,16 +3,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
 
 interface ShoppingList extends RowDataPacket {
   id: string;
   household_id: string;
   meal_plan_id: string;
   name: string;
-  status: 'active' | 'completed' | 'archived';
+  status: 'pending' | 'in_progress' | 'completed';
   created_at: Date;
-  completed_at: Date;
 }
 
 interface ShoppingListItem extends RowDataPacket {
@@ -23,6 +22,8 @@ interface ShoppingListItem extends RowDataPacket {
   quantity: number;
   unit: string;
   category: string;
+  estimated_price: number;
+  actual_price: number;
   is_purchased: boolean;
   notes: string;
 }
@@ -31,22 +32,10 @@ interface MealPlanMeal extends RowDataPacket {
   id: string;
   meal_plan_id: string;
   recipe_id: string;
-  day_of_week: number;
+  meal_date: string;
   meal_type: string;
 }
 
-// Helper to parse JSON fields
-const parseJsonField = (field: any, defaultValue: any): any => {
-  if (typeof field === 'object' && field !== null) return field;
-  if (typeof field === 'string') {
-    try {
-      return JSON.parse(field);
-    } catch {
-      return defaultValue;
-    }
-  }
-  return defaultValue;
-};
 
 // Helper to consolidate ingredients
 interface ConsolidatedIngredient {
@@ -62,14 +51,16 @@ const consolidateIngredients = (items: any[]): ConsolidatedIngredient[] => {
 
   items.forEach((item) => {
     const key = `${item.name.toLowerCase()}-${item.unit}`;
+    // MySQL DECIMAL columns are returned as strings by mysql2, so parse to number
+    const qty = typeof item.quantity === 'string' ? parseFloat(item.quantity) : (item.quantity || 0);
 
     if (consolidated.has(key)) {
       const existing = consolidated.get(key)!;
-      existing.quantity += item.quantity;
+      existing.quantity += qty;
     } else {
       consolidated.set(key, {
         name: item.name,
-        quantity: item.quantity,
+        quantity: qty,
         unit: item.unit,
         category: item.category || null,
         ingredient_id: item.ingredient_id || null,
@@ -115,7 +106,7 @@ export const createFromMealPlan = asyncHandler(async (req: AuthRequest, res: Res
     if (meal.recipe_id) {
       const ingredients = await query<RowDataPacket[]>(
         `SELECT
-          ri.amount as quantity,
+          ri.quantity,
           ri.unit,
           i.id as ingredient_id,
           i.name,
@@ -138,7 +129,7 @@ export const createFromMealPlan = asyncHandler(async (req: AuthRequest, res: Res
 
   await query(
     'INSERT INTO shopping_lists (id, household_id, meal_plan_id, name, status) VALUES (?, ?, ?, ?, ?)',
-    [shoppingListId, mealPlan.household_id, mealPlanId, name || `Shopping List - ${new Date().toLocaleDateString()}`, 'active']
+    [shoppingListId, mealPlan.household_id, mealPlanId, name || `Shopping List - ${new Date().toLocaleDateString()}`, 'pending']
   );
 
   // Add items to shopping list
@@ -190,7 +181,7 @@ export const createShoppingList = asyncHandler(async (req: AuthRequest, res: Res
 
   await query(
     'INSERT INTO shopping_lists (id, household_id, meal_plan_id, name, status) VALUES (?, ?, ?, ?, ?)',
-    [shoppingListId, householdId, null, name, 'active']
+    [shoppingListId, householdId, null, name, 'pending']
   );
 
   // Add items if provided
@@ -272,7 +263,7 @@ export const getShoppingLists = asyncHandler(async (req: AuthRequest, res: Respo
   res.json({
     success: true,
     count: listsWithCounts.length,
-    shoppingLists: listsWithCounts,
+    data: listsWithCounts,
   });
 });
 
@@ -314,7 +305,7 @@ export const getShoppingList = asyncHandler(async (req: AuthRequest, res: Respon
 
   res.json({
     success: true,
-    shoppingList: {
+    data: {
       ...list,
       items,
       groupedItems,
@@ -354,10 +345,6 @@ export const updateShoppingList = asyncHandler(async (req: AuthRequest, res: Res
   if (status !== undefined) {
     updates.push('status = ?');
     params.push(status);
-
-    if (status === 'completed') {
-      updates.push('completed_at = NOW()');
-    }
   }
 
   if (updates.length > 0) {

@@ -120,3 +120,6 @@ dev-dist/
 *.key
 *.cert
 *.crt
+
+# Git worktrees
+.worktrees/

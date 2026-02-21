@@ -81,13 +81,8 @@ export const updateMealSchema = Joi.object({
 // AI validation schemas
 export const chatSchema = Joi.object({
   message: Joi.string().min(1).max(5000).required(),
-  conversationHistory: Joi.array().items(
-    Joi.object({
-      role: Joi.string().valid('user', 'assistant', 'system').required(),
-      content: Joi.string().required(),
-    })
-  ).optional(),
   householdId: Joi.string().uuid().optional(),
+  useHistory: Joi.boolean().optional(),
 });
 
 export const aiMealPlanSchema = Joi.object({
@@ -153,6 +148,87 @@ export const updateRecipeSchema = Joi.object({
   imageUrl: Joi.string().uri().optional(),
 });
 
+// Recipe rating validation schema
+export const rateRecipeSchema = Joi.object({
+  rating: Joi.number().integer().min(1).max(5).required(),
+  review: Joi.string().max(2000).optional().allow(''),
+  images: Joi.array().items(Joi.string().uri()).max(5).optional(),
+});
+
+// Budget tracking validation schemas
+export const createBudgetSchema = Joi.object({
+  householdId: Joi.string().uuid().required(),
+  weekStart: Joi.date().required(),
+  weekEnd: Joi.date().required(),
+  budgetAllocated: Joi.number().positive().required(),
+  notes: Joi.string().max(1000).optional().allow(''),
+});
+
+export const updateSpendingSchema = Joi.object({
+  amountSpent: Joi.number().min(0).optional(),
+  amountSaved: Joi.number().min(0).optional(),
+  dealsUsed: Joi.number().integer().min(0).optional(),
+});
+
+// Nutrition tracking validation schemas
+export const compareNutritionGoalsSchema = Joi.object({
+  mealPlanId: Joi.string().uuid().required(),
+  goals: Joi.object({
+    calories: Joi.number().min(0).optional(),
+    protein: Joi.number().min(0).optional(),
+    carbs: Joi.number().min(0).optional(),
+    fat: Joi.number().min(0).optional(),
+    fiber: Joi.number().min(0).optional(),
+    sugar: Joi.number().min(0).optional(),
+    sodium: Joi.number().min(0).optional(),
+  }).required(),
+});
+
+// Inventory tracking validation schemas
+export const addInventoryItemSchema = Joi.object({
+  householdId: Joi.string().uuid().required(),
+  ingredientId: Joi.string().uuid().optional(),
+  name: Joi.string().min(1).max(255).required(),
+  quantity: Joi.number().positive().required(),
+  unit: Joi.string().min(1).max(50).required(),
+  purchaseDate: Joi.date().optional(),
+  expirationDate: Joi.date().optional(),
+  location: Joi.string().valid('Fridge', 'Pantry', 'Freezer').optional(),
+});
+
+export const updateInventoryItemSchema = Joi.object({
+  quantity: Joi.number().positive().optional(),
+  unit: Joi.string().min(1).max(50).optional(),
+  expirationDate: Joi.date().optional(),
+  location: Joi.string().valid('Fridge', 'Pantry', 'Freezer').optional(),
+  status: Joi.string().valid('fresh', 'expiring_soon', 'expired').optional(),
+});
+
+// Store integration validation schemas
+export const addStoreProductSchema = Joi.object({
+  ingredientId: Joi.string().uuid().optional(),
+  storeName: Joi.string().min(1).max(255).required(),
+  productName: Joi.string().min(1).max(255).required(),
+  brand: Joi.string().max(255).optional(),
+  price: Joi.number().positive().required(),
+  unit: Joi.string().min(1).max(50).required(),
+  quantity: Joi.number().positive().required(),
+  onSale: Joi.boolean().optional(),
+  salePrice: Joi.number().positive().optional(),
+  url: Joi.string().uri().max(500).optional(),
+});
+
+export const comparePricesSchema = Joi.object({
+  items: Joi.array().items(
+    Joi.object({
+      ingredientId: Joi.string().uuid().optional(),
+      name: Joi.string().required(),
+      quantity: Joi.number().positive().required(),
+      unit: Joi.string().required(),
+    })
+  ).min(1).required(),
+});
+
 // Shopping list validation schemas
 export const createShoppingListSchema = Joi.object({
   householdId: Joi.string().uuid().required(),
@@ -198,7 +274,7 @@ export const updateItemSchema = Joi.object({
 
 // Validation middleware factory
 export const validate = (schema: Joi.ObjectSchema) => {
-  return (req: Request, res: Response, next: NextFunction): void => {
+  return (req: Request, _res: Response, next: NextFunction): void => {
     const { error } = schema.validate(req.body, {
       abortEarly: false,
       stripUnknown: true,

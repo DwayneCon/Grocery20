@@ -1,5 +1,6 @@
 /* client/src/hooks/useSpeechRecognition.ts */
 import { useState, useEffect, useCallback } from 'react';
+import { logger } from '../utils/logger';
 
 interface SpeechRecognitionHook {
   isListening: boolean;
@@ -52,7 +53,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     };
 
     recognitionInstance.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
+      logger.error('Speech recognition error', undefined, { errorType: event.error });
       setError(`Speech recognition error: ${event.error}`);
       setIsListening(false);
     };

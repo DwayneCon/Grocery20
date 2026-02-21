@@ -1,19 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
-
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import apiClient from '../utils/apiClient';
 
 // Conversation message interface
 export interface ConversationMessage {
@@ -24,7 +9,8 @@ export interface ConversationMessage {
 // Chat request/response interfaces
 export interface ChatRequest {
   message: string;
-  conversationHistory?: ConversationMessage[];
+  householdId?: string;
+  useHistory?: boolean;
 }
 
 export interface ChatResponse {
@@ -125,13 +111,13 @@ export interface MealPlanResponse {
 export const aiService = {
   // Chat with NutriAI
   chat: async (request: ChatRequest): Promise<ChatResponse> => {
-    const response = await api.post('/ai/chat', request);
+    const response = await apiClient.post('/ai/chat', request);
     return response.data;
   },
 
   // Generate structured meal plan
   generateMealPlan: async (request: MealPlanRequest): Promise<MealPlanResponse> => {
-    const response = await api.post('/ai/generate-meal-plan', request);
+    const response = await apiClient.post('/ai/meal-plan', request);
     return response.data;
   },
 };

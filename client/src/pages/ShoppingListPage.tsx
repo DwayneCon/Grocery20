@@ -1,315 +1,845 @@
 /* client/src/pages/ShoppingListPage.tsx */
-import { useState } from 'react';
-import { Box, Typography, Button, Grid } from '@mui/material';
-
-import { Share, Add } from '@mui/icons-material';
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Typography,
+  Button,
+  Grid,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  MenuItem,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  Select,
+  FormControl,
+  InputLabel,
+  Tabs,
+  Tab,
+} from '@mui/material';
+import {
+  Add,
+  CheckCircle,
+  RadioButtonUnchecked,
+  Delete,
+  Edit,
+  ShoppingCart,
+  CompareArrows,
+} from '@mui/icons-material';
+import { motion, AnimatePresence } from 'framer-motion';
 import AuroraBackground from '../components/common/AuroraBackground';
 import GlassCard from '../components/common/GlassCard';
-import SwipeableShoppingItem from '../components/shopping/SwipeableShoppingItem';
-import StoreSelector from '../components/shopping/StoreSelector';
 import { sanitizeText } from '../utils/sanitize';
 import { useTheme } from '../contexts/ThemeContext';
+import shoppingListService, { ShoppingList, ShoppingListItem } from '../services/shoppingListService';
+import { useSelector } from 'react-redux';
+import { RootState } from '../features/store';
+import PriceComparison from '../components/shopping/PriceComparison';
+import KrogerCartButton from '../components/shopping/KrogerCartButton';
+import VirtualList from '../components/common/VirtualList';
+import { logger } from '../utils/logger';
 
-interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity: string;
-  category: string;
-  checked: boolean;
-  price?: number;
-  store?: string;
-}
+const VIRTUAL_LIST_THRESHOLD = 50;
+const LIST_ITEM_HEIGHT = 72;
 
 const ShoppingListPage = () => {
   const { mode } = useTheme();
-  const [items, setItems] = useState<ShoppingItem[]>([
-    { id: '1', name: 'Chicken Breast', quantity: '2 lbs', category: 'Meat & Seafood', checked: false, price: 8.99, store: 'Kroger' },
-    { id: '2', name: 'Fresh Salmon', quantity: '1 lb', category: 'Meat & Seafood', checked: false, price: 12.99, store: 'Whole Foods' },
-    { id: '3', name: 'Romaine Lettuce', quantity: '1 head', category: 'Produce', checked: false, price: 2.49, store: 'Kroger' },
-    { id: '4', name: 'Avocados', quantity: '3', category: 'Produce', checked: true, price: 4.99, store: 'Trader Joes' },
-    { id: '5', name: 'Oat Milk', quantity: '1 gal', category: 'Dairy & Alternatives', checked: false, price: 5.49, store: 'Target' },
-    { id: '6', name: 'Greek Yogurt', quantity: '32 oz', category: 'Dairy & Alternatives', checked: false, price: 6.99, store: 'Walmart' },
-    { id: '7', name: 'Bananas', quantity: '1 bunch', category: 'Produce', checked: false, price: 1.99 },
-  ]);
-  const [selectedStore, setSelectedStore] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useSelector((state: RootState) => state.auth);
 
-  const handleToggle = (id: string) => {
-    setItems(items.map(item =>
-      item.id === id ? { ...item, checked: !item.checked } : item
-    ));
+  const [shoppingLists, setShoppingLists] = useState<ShoppingList[]>([]);
+  const [currentList, setCurrentList] = useState<ShoppingList | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Dialog states
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [newListDialogOpen, setNewListDialogOpen] = useState(false);
+
+  // Form states
+  const [itemName, setItemName] = useState('');
+  const [itemQuantity, setItemQuantity] = useState('1');
+  const [itemUnit, setItemUnit] = useState('unit');
+  const [itemCategory, setItemCategory] = useState('');
+  const [editingItem, setEditingItem] = useState<ShoppingListItem | null>(null);
+  const [newListName, setNewListName] = useState('');
+
+  // Tab state for price comparison
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Load shopping lists on mount
+  useEffect(() => {
+    if (user?.householdId) {
+      loadShoppingLists();
+    }
+  }, [user?.householdId]);
+
+  // Handle incoming ingredients from meal plan
+  useEffect(() => {
+    if (location.state?.addIngredients && currentList) {
+      const ingredients = location.state.addIngredients;
+      const mealName = location.state.mealName;
+
+      // Add each ingredient to the shopping list
+      Promise.all(
+        ingredients.map((ing: any) =>
+          shoppingListService.addItem(currentList.id, {
+            name: ing.name,
+            quantity: parseFloat(ing.amount) || 1,
+            unit: ing.unit || 'unit',
+            category: 'From Meal Plan',
+            notes: `From ${mealName}`,
+          })
+        )
+      )
+        .then(() => {
+          setSuccess(`Added ${ingredients.length} items from ${mealName}`);
+          loadShoppingLists();
+          // Clear navigation state
+          navigate(location.pathname, { replace: true });
+        })
+        .catch((err) => {
+          logger.error('Error adding ingredients', err instanceof Error ? err : undefined);
+          setError('Failed to add some ingredients');
+        });
+    }
+  }, [location.state, currentList]);
+
+  const loadShoppingLists = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      if (!user?.householdId) {
+        setError('No household found. Please set up your household first.');
+        setLoading(false);
+        return;
+      }
+
+      const response = await shoppingListService.getShoppingLists(user.householdId);
+
+      if (response.success) {
+        const activeLists = response.data.filter((list) => list.status !== 'completed');
+        setShoppingLists(activeLists);
+
+        // Set current list to first active list if none selected
+        if (!currentList && activeLists.length > 0) {
+          setCurrentList(activeLists[0]);
+        } else if (currentList) {
+          // Refresh current list data
+          const updated = activeLists.find((l) => l.id === currentList.id);
+          if (updated) setCurrentList(updated);
+        }
+      }
+    } catch (err: any) {
+      logger.error('Error loading shopping lists', err instanceof Error ? err : undefined);
+      setError(err.response?.data?.error || err.message || 'Failed to load shopping lists');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setItems(items.filter(item => item.id !== id));
+  const handleCreateList = async () => {
+    try {
+      if (!user?.householdId) return;
+
+      const response = await shoppingListService.createShoppingList({
+        householdId: user.householdId,
+        name: newListName || 'New Shopping List',
+      });
+
+      if (response.success) {
+        setSuccess('Shopping list created successfully');
+        setNewListName('');
+        setNewListDialogOpen(false);
+        await loadShoppingLists();
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to create shopping list');
+    }
   };
 
-  const handleEdit = (id: string) => {
-    console.log('Edit item:', id);
-    // Implement edit functionality
+  const handleAddItem = async () => {
+    try {
+      if (!currentList) return;
+
+      await shoppingListService.addItem(currentList.id, {
+        name: itemName,
+        quantity: parseFloat(itemQuantity),
+        unit: itemUnit,
+        category: itemCategory || undefined,
+      });
+
+      setSuccess('Item added successfully');
+      setItemName('');
+      setItemQuantity('1');
+      setItemUnit('unit');
+      setItemCategory('');
+      setAddDialogOpen(false);
+      await loadShoppingLists();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to add item');
+    }
   };
 
-  const categories = Array.from(new Set(items.map(item => item.category)));
+  const handleUpdateItem = async () => {
+    try {
+      if (!editingItem) return;
 
-  // Calculate total price
-  const totalPrice = items
-    .filter(item => !item.checked && item.price)
-    .reduce((sum, item) => sum + (item.price || 0), 0);
+      await shoppingListService.updateItem(editingItem.id, {
+        name: itemName,
+        quantity: parseFloat(itemQuantity),
+        unit: itemUnit,
+        category: itemCategory || undefined,
+      });
 
-  const savedPrice = items
-    .filter(item => item.checked && item.price)
-    .reduce((sum, item) => sum + (item.price || 0), 0);
+      setSuccess('Item updated successfully');
+      setEditingItem(null);
+      setEditDialogOpen(false);
+      await loadShoppingLists();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to update item');
+    }
+  };
 
-  // Theme-aware aurora colors - Vibrant 5-color gradient
+  const handleDeleteItem = async (itemId: string) => {
+    try {
+      await shoppingListService.deleteItem(itemId);
+      setSuccess('Item deleted successfully');
+      await loadShoppingLists();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to delete item');
+    }
+  };
+
+  const handleToggleItem = async (itemId: string) => {
+    try {
+      await shoppingListService.toggleItemPurchased(itemId);
+      await loadShoppingLists();
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Failed to toggle item');
+    }
+  };
+
+  const openEditDialog = (item: ShoppingListItem) => {
+    setEditingItem(item);
+    setItemName(item.name);
+    setItemQuantity(item.quantity.toString());
+    setItemUnit(item.unit);
+    setItemCategory(item.category || '');
+    setEditDialogOpen(true);
+  };
+
+  const categories = currentList
+    ? Array.from(new Set(currentList.items.map((item) => item.category || 'Uncategorized')))
+    : [];
+
+  // Theme-aware aurora colors
   const auroraColors = mode === 'dark'
     ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
     : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
 
-  return (
-    <AuroraBackground colors={auroraColors} speed={20}>
-      <Box sx={{
-        p: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 },
-        position: 'relative',
-        zIndex: 2,
-        maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1800px' },
-        mx: 'auto',
-        width: '100%'
-      }}>
-
-        <Box sx={{
-          mb: { xs: 3, md: 4 },
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: 2
-        }}>
-          <Box>
-             <Typography
-               variant="h2"
-               fontWeight="900"
-               sx={{
-                 background: mode === 'dark'
-                   ? 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)'
-                   : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
-                 WebkitBackgroundClip: 'text',
-                 WebkitTextFillColor: 'transparent',
-                 fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' },
-                 lineHeight: 1
-               }}
-             >
-               Shopping List
-             </Typography>
-             <Typography
-               variant="h6"
-               sx={{
-                 color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                 fontSize: { xs: '1rem', md: '1.25rem' }
-               }}
-             >
-               {items.filter(i => !i.checked).length} items remaining
-             </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <StoreSelector selectedStore={selectedStore} onStoreSelect={setSelectedStore} />
-            <Button
-              variant="contained"
-              startIcon={<Share />}
-              sx={{
-                bgcolor: mode === 'dark' ? 'white' : '#4ECDC4',
-                color: mode === 'dark' ? 'black' : 'white',
-                borderRadius: 4,
-                px: 3,
-                fontWeight: 'bold',
-                '&:hover': {
-                  bgcolor: mode === 'dark' ? '#f0f0f0' : '#3BA59E'
-                }
-              }}
-            >
-              Share
-            </Button>
-          </Box>
-        </Box>
-
-        {/* Budget Summary */}
-        <GlassCard intensity="ultra" sx={{
-          mb: { xs: 3, md: 4 },
-          p: { xs: 2, md: 3 },
-          position: 'relative',
-          overflow: 'hidden',
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            transition: 'all 0.3s ease'
-          }
-        }}>
-          <Grid container spacing={{ xs: 2, md: 3 }}>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                    fontSize: { xs: '0.75rem', md: '0.875rem' }
-                  }}
-                >
-                  Estimated Total
-                </Typography>
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  sx={{
-                    background: 'linear-gradient(135deg, #4ECDC4 0%, #00d4aa 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  ${totalPrice.toFixed(2)}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                    fontSize: { xs: '0.75rem', md: '0.875rem' }
-                  }}
-                >
-                  Already Purchased
-                </Typography>
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  ${savedPrice.toFixed(2)}
-                </Typography>
-              </Box>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <Box>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-                    fontSize: { xs: '0.75rem', md: '0.875rem' }
-                  }}
-                >
-                  Items
-                </Typography>
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  sx={{
-                    color: mode === 'dark' ? 'white' : '#000000',
-                    fontSize: { xs: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  {items.filter(i => !i.checked).length} / {items.length}
-                </Typography>
-              </Box>
-            </Grid>
-          </Grid>
-        </GlassCard>
-
-        {/* Tip */}
-        <Box sx={{ mb: { xs: 2, md: 3 }, textAlign: 'center' }}>
-          <Typography
-            variant="body2"
-            sx={{
-              color: mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)',
-              fontSize: { xs: '0.85rem', md: '0.875rem' }
-            }}
-          >
-            💡 Swipe left on items to delete
+  if (loading) {
+    return (
+      <AuroraBackground colors={auroraColors} speed={20}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            flexDirection: 'column',
+            gap: 2,
+          }}
+        >
+          <CircularProgress size={60} sx={{ color: '#4ECDC4' }} />
+          <Typography variant="h6" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+            Loading shopping lists...
           </Typography>
         </Box>
+      </AuroraBackground>
+    );
+  }
 
-        <Grid container spacing={{ xs: 3, md: 4 }}>
-          {categories.map((category, i) => (
-            <Grid size={{ xs: 12, sm: 6, lg: 4 }} key={category}>
-              <GlassCard
-                intensity="ultra"
-                sx={{
-                  height: '100%',
-                  p: 0,
-                  overflow: 'hidden',
-                  borderRadius: { xs: '20px', md: '24px' },
-                  position: 'relative',
-                  '&:hover': {
-                    transform: 'translateY(-8px) scale(1.02)',
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 20px 60px rgba(78, 205, 196, 0.3)'
-                  }
-                }}
-              >
-                <Box sx={{
-                  p: { xs: 2, md: 3 },
-                  bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-                  borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)'
-                }}>
-                  <Typography
-                    variant="h6"
-                    fontWeight="bold"
-                    sx={{
-                      background: 'linear-gradient(135deg, #4ECDC4 0%, #00d4aa 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      fontSize: { xs: '1.1rem', md: '1.25rem' }
-                    }}
-                  >
-                    {sanitizeText(category)}
-                  </Typography>
-                </Box>
+  return (
+    <AuroraBackground colors={auroraColors} speed={20}>
+      {/* Snackbars */}
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="error" onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      </Snackbar>
 
-                <Box sx={{ p: 2 }}>
-                  {items.filter(item => item.category === category).map((item) => (
-                    <SwipeableShoppingItem
-                      key={item.id}
-                      item={item}
-                      onToggle={handleToggle}
-                      onDelete={handleDelete}
-                      onEdit={handleEdit}
-                    />
-                  ))}
-                </Box>
-              </GlassCard>
-            </Grid>
-          ))}
-        </Grid>
+      <Snackbar
+        open={!!success}
+        autoHideDuration={3000}
+        onClose={() => setSuccess(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert severity="success" onClose={() => setSuccess(null)}>
+          {success}
+        </Alert>
+      </Snackbar>
 
-        {/* Floating Add Button */}
-        <Box sx={{
-          position: 'fixed',
-          bottom: { xs: 100, md: 48 },
-          right: { xs: 24, md: 48 },
-          zIndex: 10
-        }}>
-           <Button
-            variant="contained"
+      {/* Add Item Dialog */}
+      <Dialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>Add Item</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Item Name"
+            fullWidth
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
             sx={{
-              borderRadius: '50%',
-              width: { xs: 56, md: 64 },
-              height: { xs: 56, md: 64 },
-              minWidth: 0,
-              background: 'linear-gradient(135deg, #4ECDC4 0%, #00d4aa 100%)',
-              boxShadow: '0 8px 32px rgba(78, 205, 196, 0.4)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #00d4aa 0%, #4ECDC4 100%)',
-                transform: 'scale(1.1) rotate(90deg)',
-                transition: 'all 0.3s ease'
-              }
+              mb: 2,
+              '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+              '& .MuiOutlinedInput-root': {
+                color: mode === 'dark' ? 'white' : '#000000',
+                '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+              },
+            }}
+          />
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              label="Quantity"
+              type="number"
+              value={itemQuantity}
+              onChange={(e) => setItemQuantity(e.target.value)}
+              sx={{
+                flex: 1,
+                '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+                '& .MuiOutlinedInput-root': {
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+                },
+              }}
+            />
+            <TextField
+              label="Unit"
+              value={itemUnit}
+              onChange={(e) => setItemUnit(e.target.value)}
+              sx={{
+                flex: 1,
+                '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+                '& .MuiOutlinedInput-root': {
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+                },
+              }}
+            />
+          </Box>
+          <TextField
+            label="Category (optional)"
+            fullWidth
+            value={itemCategory}
+            onChange={(e) => setItemCategory(e.target.value)}
+            sx={{
+              '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+              '& .MuiOutlinedInput-root': {
+                color: mode === 'dark' ? 'white' : '#000000',
+                '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddDialogOpen(false)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAddItem}
+            variant="contained"
+            disabled={!itemName.trim()}
+            sx={{
+              bgcolor: '#4ECDC4',
+              color: 'black',
+              '&:hover': { bgcolor: '#45b7af' },
             }}
           >
-            <Add sx={{ fontSize: { xs: 28, md: 32 }, color: 'white' }} />
+            Add
           </Button>
-        </Box>
+        </DialogActions>
+      </Dialog>
 
+      {/* Edit Item Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>Edit Item</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Item Name"
+            fullWidth
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
+            sx={{
+              mb: 2,
+              '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+              '& .MuiOutlinedInput-root': {
+                color: mode === 'dark' ? 'white' : '#000000',
+                '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+              },
+            }}
+          />
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              label="Quantity"
+              type="number"
+              value={itemQuantity}
+              onChange={(e) => setItemQuantity(e.target.value)}
+              sx={{
+                flex: 1,
+                '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+                '& .MuiOutlinedInput-root': {
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+                },
+              }}
+            />
+            <TextField
+              label="Unit"
+              value={itemUnit}
+              onChange={(e) => setItemUnit(e.target.value)}
+              sx={{
+                flex: 1,
+                '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+                '& .MuiOutlinedInput-root': {
+                  color: mode === 'dark' ? 'white' : '#000000',
+                  '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+                },
+              }}
+            />
+          </Box>
+          <TextField
+            label="Category (optional)"
+            fullWidth
+            value={itemCategory}
+            onChange={(e) => setItemCategory(e.target.value)}
+            sx={{
+              '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+              '& .MuiOutlinedInput-root': {
+                color: mode === 'dark' ? 'white' : '#000000',
+                '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleUpdateItem}
+            variant="contained"
+            disabled={!itemName.trim()}
+            sx={{
+              bgcolor: '#4ECDC4',
+              color: 'black',
+              '&:hover': { bgcolor: '#45b7af' },
+            }}
+          >
+            Update
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* New List Dialog */}
+      <Dialog
+        open={newListDialogOpen}
+        onClose={() => setNewListDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            background: mode === 'dark' ? 'rgba(30, 30, 30, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(10px)',
+            border: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+            borderRadius: 3,
+          },
+        }}
+      >
+        <DialogTitle sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>Create Shopping List</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="List Name"
+            fullWidth
+            value={newListName}
+            onChange={(e) => setNewListName(e.target.value)}
+            placeholder="e.g., Weekly Groceries"
+            sx={{
+              '& .MuiInputLabel-root': { color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' },
+              '& .MuiOutlinedInput-root': {
+                color: mode === 'dark' ? 'white' : '#000000',
+                '& fieldset': { borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)' },
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNewListDialogOpen(false)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCreateList}
+            variant="contained"
+            sx={{
+              bgcolor: '#4ECDC4',
+              color: 'black',
+              '&:hover': { bgcolor: '#45b7af' },
+            }}
+          >
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Box sx={{ p: { xs: 2, md: 6 }, maxWidth: '1400px', mx: 'auto', position: 'relative', zIndex: 2 }}>
+        {/* Header */}
+        <GlassCard
+          intensity="medium"
+          sx={{
+            mb: 4,
+            p: 4,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 2,
+          }}
+        >
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h3" fontWeight="800" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 1 }}>
+              Shopping Lists
+            </Typography>
+            {currentList && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 200 }}>
+                  <InputLabel sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.7)' }}>
+                    Current List
+                  </InputLabel>
+                  <Select
+                    value={currentList.id}
+                    onChange={(e) => {
+                      const selected = shoppingLists.find((l) => l.id === e.target.value);
+                      if (selected) setCurrentList(selected);
+                    }}
+                    sx={{
+                      color: mode === 'dark' ? 'white' : '#000000',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                      },
+                    }}
+                  >
+                    {shoppingLists.map((list) => (
+                      <MenuItem key={list.id} value={list.id}>
+                        {list.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)' }}>
+                  {currentList.items.filter((i) => !i.purchased).length} items remaining
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              startIcon={<Add />}
+              onClick={() => setNewListDialogOpen(true)}
+              sx={{
+                color: mode === 'dark' ? 'white' : '#000000',
+                borderColor: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
+                '&:hover': {
+                  borderColor: '#4ECDC4',
+                  bgcolor: 'rgba(78,205,196,0.1)',
+                },
+              }}
+            >
+              New List
+            </Button>
+            {currentList && currentList.items && currentList.items.length > 0 && (
+              <KrogerCartButton
+                items={currentList.items.map((item: ShoppingListItem) => ({
+                  name: item.name,
+                  quantity: item.quantity,
+                  unit: item.unit,
+                }))}
+              />
+            )}
+          </Box>
+        </GlassCard>
+
+        {/* Tabs for Shopping List and Price Comparison */}
+        {currentList && (
+          <GlassCard intensity="light" sx={{ mb: 4 }}>
+            <Tabs
+              value={activeTab}
+              onChange={(_, newValue) => setActiveTab(newValue)}
+              sx={{
+                '& .MuiTab-root': {
+                  color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
+                  '&.Mui-selected': {
+                    color: '#4ECDC4',
+                  },
+                },
+                '& .MuiTabs-indicator': {
+                  bgcolor: '#4ECDC4',
+                },
+              }}
+            >
+              <Tab icon={<ShoppingCart />} label="Shopping List" iconPosition="start" />
+              <Tab icon={<CompareArrows />} label="Price Comparison" iconPosition="start" />
+            </Tabs>
+          </GlassCard>
+        )}
+
+        {!currentList ? (
+          /* Empty State */
+          <GlassCard intensity="ultra" sx={{ p: 6, textAlign: 'center' }}>
+            <ShoppingCart sx={{ fontSize: 80, color: mode === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)', mb: 3 }} />
+            <Typography variant="h5" sx={{ color: mode === 'dark' ? 'white' : '#000000', mb: 2, fontWeight: 'bold' }}>
+              No Shopping Lists Yet
+            </Typography>
+            <Typography variant="body1" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)', mb: 4 }}>
+              Create your first shopping list to start organizing your groceries!
+            </Typography>
+            <Button
+              variant="contained"
+              size="large"
+              startIcon={<Add />}
+              onClick={() => setNewListDialogOpen(true)}
+              sx={{
+                bgcolor: '#4ECDC4',
+                color: 'black',
+                fontWeight: 'bold',
+                '&:hover': { bgcolor: '#45b7af' },
+                px: 4,
+                py: 1.5,
+              }}
+            >
+              Create Shopping List
+            </Button>
+          </GlassCard>
+        ) : activeTab === 0 ? (
+          /* Shopping List Tab */
+          <Grid container spacing={4}>
+            {categories.map((category) => {
+              const categoryItems = currentList.items.filter(
+                (item) => (item.category || 'Uncategorized') === category
+              );
+              const shouldVirtualize = currentList.items.length > VIRTUAL_LIST_THRESHOLD;
+
+              return (
+                <Grid size={{ xs: 12, md: 6 }} key={category}>
+                  <GlassCard intensity="light" sx={{ p: 0, overflow: 'hidden', height: '100%' }}>
+                    <Box
+                      sx={{
+                        p: 3,
+                        bgcolor: mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)',
+                        borderBottom: mode === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                      }}
+                    >
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: '#4ECDC4' }}>
+                        {sanitizeText(category)}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ p: 2 }}>
+                      {shouldVirtualize ? (
+                        <VirtualList
+                          items={categoryItems}
+                          itemHeight={LIST_ITEM_HEIGHT}
+                          containerHeight={Math.min(categoryItems.length * LIST_ITEM_HEIGHT, 420)}
+                          overscan={6}
+                          getKey={(item) => item.id}
+                          renderItem={(item) => (
+                            <Box
+                              sx={{
+                                p: 2,
+                                mb: 1,
+                                borderRadius: 3,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 2,
+                                bgcolor: item.purchased
+                                  ? mode === 'dark'
+                                    ? 'rgba(255,255,255,0.02)'
+                                    : 'rgba(0,0,0,0.02)'
+                                  : mode === 'dark'
+                                  ? 'rgba(255,255,255,0.1)'
+                                  : 'rgba(0,0,0,0.1)',
+                                transition: 'all 0.2s ease',
+                              }}
+                            >
+                              <IconButton
+                                size="small"
+                                onClick={() => handleToggleItem(item.id)}
+                                sx={{ color: item.purchased ? '#4ECDC4' : mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+                              >
+                                {item.purchased ? <CheckCircle /> : <RadioButtonUnchecked />}
+                              </IconButton>
+                              <Box
+                                sx={{
+                                  flex: 1,
+                                  opacity: item.purchased ? 0.5 : 1,
+                                  textDecoration: item.purchased ? 'line-through' : 'none',
+                                }}
+                              >
+                                <Typography variant="body1" fontWeight="500" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                  {sanitizeText(item.name)}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
+                                  {item.quantity} {item.unit}
+                                </Typography>
+                              </Box>
+                              <IconButton size="small" onClick={() => openEditDialog(item)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                <Edit fontSize="small" />
+                              </IconButton>
+                              <IconButton size="small" onClick={() => handleDeleteItem(item.id)} sx={{ color: '#FF6B6B' }}>
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          )}
+                        />
+                      ) : (
+                        <AnimatePresence>
+                          {categoryItems.map((item) => (
+                            <motion.div
+                              key={item.id}
+                              layout
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                            >
+                              <Box
+                                sx={{
+                                  p: 2,
+                                  mb: 1,
+                                  borderRadius: 3,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 2,
+                                  bgcolor: item.purchased
+                                    ? mode === 'dark'
+                                      ? 'rgba(255,255,255,0.02)'
+                                      : 'rgba(0,0,0,0.02)'
+                                    : mode === 'dark'
+                                    ? 'rgba(255,255,255,0.1)'
+                                    : 'rgba(0,0,0,0.1)',
+                                  transition: 'all 0.2s ease',
+                                }}
+                              >
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleToggleItem(item.id)}
+                                  sx={{ color: item.purchased ? '#4ECDC4' : mode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)' }}
+                                >
+                                  {item.purchased ? <CheckCircle /> : <RadioButtonUnchecked />}
+                                </IconButton>
+                                <Box
+                                  sx={{
+                                    flex: 1,
+                                    opacity: item.purchased ? 0.5 : 1,
+                                    textDecoration: item.purchased ? 'line-through' : 'none',
+                                  }}
+                                >
+                                  <Typography variant="body1" fontWeight="500" sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                    {sanitizeText(item.name)}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: mode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)' }}>
+                                    {item.quantity} {item.unit}
+                                  </Typography>
+                                </Box>
+                                <IconButton size="small" onClick={() => openEditDialog(item)} sx={{ color: mode === 'dark' ? 'white' : '#000000' }}>
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                <IconButton size="small" onClick={() => handleDeleteItem(item.id)} sx={{ color: '#FF6B6B' }}>
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      )}
+                    </Box>
+                  </GlassCard>
+                </Grid>
+              );
+            })}
+          </Grid>
+        ) : (
+          /* Price Comparison Tab */
+          <PriceComparison
+            items={currentList.items}
+          />
+        )}
+
+        {/* Floating Add Button */}
+        {currentList && activeTab === 0 && (
+          <IconButton
+            onClick={() => setAddDialogOpen(true)}
+            sx={{
+              position: 'fixed',
+              bottom: 100,
+              right: 32,
+              width: 64,
+              height: 64,
+              bgcolor: '#4ECDC4',
+              color: 'white',
+              boxShadow: '0 10px 30px rgba(78, 205, 196, 0.4)',
+              '&:hover': { bgcolor: '#3dbdb6', transform: 'scale(1.1)' },
+              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              zIndex: 100,
+            }}
+          >
+            <Add sx={{ fontSize: 32 }} />
+          </IconButton>
+        )}
       </Box>
     </AuroraBackground>
   );

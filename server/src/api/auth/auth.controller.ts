@@ -4,7 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest, generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
+import emailService from '../../services/emailService.js';
+import { logger } from '../../utils/logger.js';
 
 interface User extends RowDataPacket {
   id: string;
@@ -112,7 +114,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response) => {
   });
 });
 
-// Refresh access token
+// Refresh access token (with refresh token rotation)
 export const refreshToken = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { refreshToken } = req.body;
 
@@ -145,6 +147,12 @@ export const refreshToken = asyncHandler(async (req: AuthRequest, res: Response)
 
   const user = users[0];
 
+  // REFRESH TOKEN ROTATION: Delete old refresh token
+  await query(
+    'DELETE FROM refresh_tokens WHERE token = ?',
+    [refreshToken]
+  );
+
   // Generate new access token
   const accessToken = generateAccessToken({
     id: user.id,
@@ -152,8 +160,19 @@ export const refreshToken = asyncHandler(async (req: AuthRequest, res: Response)
     householdId: user.household_id,
   });
 
+  // REFRESH TOKEN ROTATION: Generate new refresh token
+  const newRefreshToken = generateRefreshToken({ id: user.id });
+
+  // Store new refresh token in database
+  await query(
+    'INSERT INTO refresh_tokens (user_id, token) VALUES (?, ?)',
+    [user.id, newRefreshToken]
+  );
+
+  // Return both new tokens
   res.json({
     accessToken,
+    refreshToken: newRefreshToken,
   });
 });
 
@@ -191,5 +210,94 @@ export const getCurrentUser = asyncHandler(async (req: AuthRequest, res: Respons
 
   res.json({
     user: users[0],
+  });
+});
+
+// Forgot password - Request reset token
+export const forgotPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { email } = req.body;
+
+  // Find user by email
+  const users = await query<User[]>(
+    'SELECT id, name, email FROM users WHERE email = ?',
+    [email]
+  );
+
+  // Always return success to prevent email enumeration attacks
+  if (users.length === 0) {
+    res.json({
+      message: 'If an account exists with that email, a password reset link has been sent.',
+    });
+    return;
+  }
+
+  const user = users[0];
+
+  // Generate reset token (expires in 1 hour)
+  const resetToken = uuidv4();
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+  // Store reset token in database
+  await query(
+    'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE token = ?, expires_at = ?',
+    [user.id, resetToken, expiresAt, resetToken, expiresAt]
+  );
+
+  // Send password reset email (non-blocking -- don't let email failure affect response)
+  try {
+    await emailService.sendPasswordResetEmail(user.email, user.name, resetToken);
+  } catch (emailError) {
+    logger.error('Failed to send password reset email:', emailError);
+  }
+
+  res.json({
+    message: 'If an account exists with that email, a password reset link has been sent.',
+  });
+});
+
+// Reset password with token
+export const resetPassword = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    throw new AppError('Token and new password are required', 400);
+  }
+
+  // Find valid reset token
+  const tokens = await query<RowDataPacket[]>(
+    'SELECT user_id, expires_at FROM password_reset_tokens WHERE token = ? AND expires_at > NOW()',
+    [token]
+  );
+
+  if (tokens.length === 0) {
+    throw new AppError('Invalid or expired reset token', 400);
+  }
+
+  const userId = tokens[0].user_id;
+
+  // Hash new password
+  const saltRounds = 12;
+  const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+
+  // Update user password
+  await query(
+    'UPDATE users SET password_hash = ? WHERE id = ?',
+    [passwordHash, userId]
+  );
+
+  // Delete used reset token
+  await query(
+    'DELETE FROM password_reset_tokens WHERE token = ?',
+    [token]
+  );
+
+  // Invalidate all refresh tokens for this user (for security)
+  await query(
+    'DELETE FROM refresh_tokens WHERE user_id = ?',
+    [userId]
+  );
+
+  res.json({
+    message: 'Password reset successful. Please login with your new password.',
   });
 });

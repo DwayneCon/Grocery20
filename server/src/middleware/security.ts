@@ -20,6 +20,9 @@ export const securityHeaders = helmet({
   },
 });
 
+// In test mode, skip rate limiting to allow integration tests to run freely
+const isTestEnv = config.nodeEnv === 'test';
+
 // Rate limiting
 export const rateLimiter = rateLimit({
   windowMs: config.security.rateLimitWindowMs,
@@ -27,6 +30,7 @@ export const rateLimiter = rateLimit({
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isTestEnv,
 });
 
 // Auth rate limiter (stricter for auth endpoints)
@@ -36,10 +40,11 @@ export const authRateLimiter = rateLimit({
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => isTestEnv,
 });
 
 // Input sanitization middleware
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   // Remove any potential XSS from request body
   if (req.body) {
     Object.keys(req.body).forEach(key => {

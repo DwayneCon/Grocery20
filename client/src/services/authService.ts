@@ -1,10 +1,4 @@
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
-
-const api = axios.create({
-  baseURL: API_URL,
-});
+import apiClient from '../utils/apiClient';
 
 export interface LoginCredentials {
   email: string;
@@ -32,19 +26,19 @@ export interface AuthResponse {
 export const authService = {
   // Login
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await apiClient.post('/auth/login', credentials);
     return response.data;
   },
 
   // Register
   register: async (data: RegisterData): Promise<AuthResponse> => {
-    const response = await api.post('/auth/register', data);
+    const response = await apiClient.post('/auth/register', data);
     return response.data;
   },
 
   // Refresh token
-  refreshToken: async (refreshToken: string): Promise<{ accessToken: string }> => {
-    const response = await api.post('/auth/refresh', { refreshToken });
+  refreshToken: async (refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> => {
+    const response = await apiClient.post('/auth/refresh', { refreshToken });
     return response.data;
   },
 };

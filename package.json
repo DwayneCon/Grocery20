@@ -20,7 +20,11 @@
     "db:seed": "mysql -u root -p grocery_planner < scripts/seed.sql",
     "deploy": "bash scripts/deploy.sh",
     "clean": "rm -rf client/dist client/node_modules server/dist server/node_modules node_modules",
-    "type-check": "cd client && npm run type-check && cd ../server && tsc --noEmit"
+    "type-check": "cd client && npm run type-check && cd ../server && tsc --noEmit",
+    "test:e2e": "npx playwright test --config=e2e/playwright.config.ts",
+    "e2e": "playwright test",
+    "e2e:ui": "playwright test --ui",
+    "e2e:report": "playwright show-report"
   },
   "keywords": [
     "meal-planning",
@@ -32,7 +36,12 @@
   ],
   "author": "Dwayne Concepcion",
   "license": "ISC",
+  "overrides": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "concurrently": "^9.2.1"
   }
 }

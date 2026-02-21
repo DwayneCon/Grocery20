@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Weekly Summary is Ready - Grocery20</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #1e293b;
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+            padding: 40px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .content h2 {
+            color: #10b981;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .content p {
+            line-height: 1.6;
+            color: #cbd5e1;
+            font-size: 16px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 30px 0;
+        }
+        .stat-card {
+            background-color: #334155;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 36px;
+            font-weight: 700;
+            color: #10b981;
+            margin: 10px 0;
+        }
+        .stat-label {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+        .achievement-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000000;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 5px;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #10b981;
+            color: #ffffff;
+            padding: 16px 32px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .footer {
+            background-color: #0f172a;
+            padding: 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+        }
+        .footer a {
+            color: #10b981;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Your Week in Review</h1>
+        </div>
+
+        <div class="content">
+            <h2>Hi {{userName}},</h2>
+
+            <p>It's been an amazing week! Here's a snapshot of your meal planning journey:</p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Meals Planned</div>
+                    <div class="stat-number">{{mealsPlanned}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Days Streak</div>
+                    <div class="stat-number">🔥 {{streakDays}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Budget Saved</div>
+                    <div class="stat-number">${{savedAmount}}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Recipes Tried</div>
+                    <div class="stat-number">{{recipesTried}}</div>
+                </div>
+            </div>
+
+            <div style="background-color: #334155; padding: 25px; border-radius: 12px; margin: 25px 0;">
+                <h3 style="color: #10b981; margin-top: 0;">🏆 Achievements Unlocked</h3>
+                <center>
+                    <span class="achievement-badge">🌟 Week Warrior</span>
+                    <span class="achievement-badge">💰 Budget Master</span>
+                    <span class="achievement-badge">🔥 Streak Started</span>
+                </center>
+            </div>
+
+            <h3 style="color: #10b981;">📈 This Week's Highlights</h3>
+            <ul style="color: #cbd5e1; line-height: 2;">
+                <li>You stayed <strong>{{percentUnderBudget}}% under budget</strong> - great job!</li>
+                <li>Your most loved meal: <strong>{{topMeal}}</strong> ⭐</li>
+                <li>You're building consistent habits with a <strong>{{streakDays}}-day streak</strong></li>
+                <li>{{totalInteractions}} conversations with Nora helped refine your preferences</li>
+            </ul>
+
+            <center>
+                <a href="{{appUrl}}/dashboard" class="cta-button">View Full Dashboard 📊</a>
+            </center>
+
+            <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(52, 211, 153, 0.2) 100%); padding: 20px; border-radius: 12px; margin-top: 30px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <h4 style="color: #10b981; margin-top: 0;">💡 Pro Tip for Next Week:</h4>
+                <p style="margin-bottom: 0;">Try meal prep! Ask Nora: "Plan 3 batch-cooking meals I can prepare on Sunday." You'll save time all week long!</p>
+            </div>
+
+            <p style="margin-top: 30px;">Want weekly summaries delivered to your inbox? <a href="{{appUrl}}/settings/notifications" style="color: #10b981; text-decoration: none; font-weight: 600;">Enable weekly emails →</a></p>
+
+            <p>Keep up the amazing work!<br>
+            <strong>The Grocery20 Team</strong></p>
+        </div>
+
+        <div class="footer">
+            <p>You're receiving this email because you signed up for Grocery20.</p>
+            <p><a href="{{appUrl}}/settings">Manage preferences</a> | <a href="{{appUrl}}/unsubscribe">Unsubscribe</a></p>
+            <p>&copy; 2025 Grocery20. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -84,6 +84,7 @@ export default defineConfig({
     })
   ],
   resolve: {
+    dedupe: ['react', 'react-dom'],
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@components': path.resolve(__dirname, './src/components'),
@@ -104,19 +105,101 @@ export default defineConfig({
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+      '/socket.io': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   build: {
     outDir: 'dist',
     sourcemap: false,
+    target: 'esnext',
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+        pure_funcs: ['console.log', 'console.info'],
+      },
+    },
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          redux: ['@reduxjs/toolkit', 'react-redux'],
-          ui: ['@mui/material', '@mui/icons-material'],
+        manualChunks: (id) => {
+          // Core React libraries
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'react-vendor';
+          }
+          // Redux ecosystem
+          if (id.includes('node_modules/@reduxjs') || id.includes('node_modules/react-redux') || id.includes('node_modules/redux')) {
+            return 'redux-vendor';
+          }
+          // Material-UI core
+          if (id.includes('node_modules/@mui/material')) {
+            return 'mui-core';
+          }
+          // Material-UI icons (large package)
+          if (id.includes('node_modules/@mui/icons-material')) {
+            return 'mui-icons';
+          }
+          // Framer Motion animations
+          if (id.includes('node_modules/framer-motion')) {
+            return 'framer-vendor';
+          }
+          // D3 charts and related sub-packages
+          if (id.includes('node_modules/d3') || id.includes('node_modules/d3-')) {
+            return 'd3-vendor';
+          }
+          // Lottie animations
+          if (id.includes('node_modules/lottie-react') || id.includes('node_modules/lottie-web')) {
+            return 'lottie-vendor';
+          }
+          // Socket.IO client and engine.io
+          if (id.includes('node_modules/socket.io-client') || id.includes('node_modules/engine.io-client')) {
+            return 'socket-vendor';
+          }
+          // Sentry error monitoring
+          if (id.includes('node_modules/@sentry')) {
+            return 'sentry-vendor';
+          }
+          // TanStack / React Query
+          if (id.includes('node_modules/@tanstack')) {
+            return 'query-vendor';
+          }
+          // Axios HTTP client
+          if (id.includes('node_modules/axios')) {
+            return 'axios-vendor';
+          }
+          // Emotion styling libraries
+          if (id.includes('node_modules/@emotion')) {
+            return 'emotion';
+          }
+          // Other node_modules
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        },
+        chunkFileNames: 'assets/js/[name]-[hash].js',
+        entryFileNames: 'assets/js/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          if (!assetInfo.name) return 'assets/[name]-[hash].[ext]';
+          const info = assetInfo.name.split('.');
+          const ext = info[info.length - 1];
+          if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico|webp)$/i.test(assetInfo.name)) {
+            return `assets/images/[name]-[hash].${ext}`;
+          } else if (/\.(woff2?|eot|ttf|otf)$/i.test(assetInfo.name)) {
+            return `assets/fonts/[name]-[hash].${ext}`;
+          }
+          return `assets/[ext]/[name]-[hash].${ext}`;
         },
       },
     },
+    chunkSizeWarningLimit: 1000,
+    reportCompressedSize: true,
+    cssCodeSplit: true,
+  },
+  optimizeDeps: {
+    include: ['react-router-dom', '@mui/material', '@mui/icons-material', 'framer-motion', 'react-is'],
   },
 });

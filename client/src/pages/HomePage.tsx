@@ -1,425 +1,288 @@
-import { Box, Typography, Button, Grid, useTheme as useMuiTheme } from '@mui/material';
+import { Box, Typography, Button, Grid } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { Restaurant, ShoppingCart, AutoAwesome, Bolt } from '@mui/icons-material';
-import { motion } from 'framer-motion';
-import AuroraBackground from '../components/common/AuroraBackground';
-import GlassCard from '../components/common/GlassCard';
-import { useTheme } from '../contexts/ThemeContext';
+import { motion, useReducedMotion } from 'framer-motion';
+import HeroSection from '../components/home/HeroSection';
+import ParallaxSection from '../components/home/ParallaxSection';
+import FeatureShowcase from '../components/home/FeatureShowcase';
+import SocialProof from '../components/home/SocialProof';
+import InteractiveDemo from '../components/home/InteractiveDemo';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const muiTheme = useMuiTheme();
-  const { mode } = useTheme();
-
-  const features = [
-    {
-      icon: <AutoAwesome sx={{ fontSize: 48, color: '#FF6B6B' }} />,
-      title: 'AI Chef',
-      description: 'Conversational meal planning that understands your cravings and budget.',
-    },
-    {
-      icon: <Restaurant sx={{ fontSize: 48, color: '#4ECDC4' }} />,
-      title: 'Smart Menu',
-      description: 'Weekly plans balanced for nutrition, taste, and household dislikes.',
-    },
-    {
-      icon: <ShoppingCart sx={{ fontSize: 48, color: '#FFE66D' }} />,
-      title: 'Auto List',
-      description: 'Instant grocery lists organized by store aisle. Never miss an item.',
-    },
-  ];
-
-  // Theme-aware aurora colors - Vibrant 5-color gradient
-  const auroraColors = mode === 'dark'
-    ? ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe']
-    : ['#a8edea', '#fed6e3', '#ffecd2', '#fcb69f', '#ff9a9e'];
+  const prefersReducedMotion = useReducedMotion();
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: mode === 'dark' ? '#0A0E27' : '#F5F5F5', width: '100%', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        bgcolor: '#0a0f1e',
+        width: '100%',
+        overflow: 'hidden',
+        scrollBehavior: 'smooth',
+      }}
+    >
+      {/* 1. Full-Viewport Hero */}
+      <HeroSection />
 
-      {/* Hero Section */}
-      <AuroraBackground speed={12} colors={auroraColors}>
-        <Box sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+      {/* 2. Feature Showcase with Parallax */}
+      <ParallaxSection direction="left">
+        <FeatureShowcase />
+      </ParallaxSection>
+
+      {/* 3. Interactive Demo */}
+      <ParallaxSection direction="right">
+        <Box sx={{ bgcolor: '#0a0f1e', width: '100%' }}>
+          <InteractiveDemo />
+        </Box>
+      </ParallaxSection>
+
+      {/* 4. Social Proof Counters with Parallax */}
+      <ParallaxSection direction="left">
+        <SocialProof />
+      </ParallaxSection>
+
+      {/* 5. CTA Section */}
+      <Box
+        component="section"
+        aria-label="Call to action"
+        sx={{
+          textAlign: 'center',
+          py: { xs: 8, md: 12 },
+          px: { xs: 2, sm: 3, md: 4, lg: 6 },
           position: 'relative',
-          zIndex: 2,
-          width: '100%',
-          px: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 }
-        }}>
+          background: 'linear-gradient(180deg, #0a0f1e 0%, #111827 50%, #0a0f1e 100%)',
+        }}
+      >
+        {/* Subtle glow behind the heading */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: '30%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '400px',
+            height: '200px',
+            background: 'radial-gradient(ellipse, rgba(249, 115, 22, 0.12) 0%, transparent 70%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <motion.div
+          initial={prefersReducedMotion ? undefined : { opacity: 0, y: 30 }}
+          whileInView={prefersReducedMotion ? undefined : { opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.6 }}
+          style={{ position: 'relative', zIndex: 1 }}
+        >
+          <Typography
+            variant="h3"
+            component="h2"
+            sx={{
+              fontWeight: 900,
+              fontSize: { xs: '1.75rem', sm: '2.25rem', md: '3rem' },
+              color: '#ffffff',
+              mb: 2,
+              letterSpacing: '-0.02em',
+            }}
+          >
+            Ready to Transform Your Kitchen?
+          </Typography>
+          <Typography
+            variant="h6"
+            sx={{
+              color: 'rgba(255, 255, 255, 0.55)',
+              mb: 5,
+              maxWidth: '600px',
+              mx: 'auto',
+              fontSize: { xs: '1rem', sm: '1.1rem', md: '1.2rem' },
+              fontWeight: 400,
+            }}
+          >
+            Join thousands of families who have simplified their meal planning with AI.
+          </Typography>
+
           <Box
-            component={motion.div}
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
             sx={{
-              textAlign: 'center',
-              width: '100%',
-              maxWidth: { xs: '100%', sm: '100%', md: '90%', lg: '80%', xl: '1600px' }
+              display: 'flex',
+              gap: 2,
+              justifyContent: 'center',
+              flexWrap: 'wrap',
             }}
           >
-            <GlassCard intensity="light" sx={{ display: 'inline-block', px: 3, py: 1, mb: 3, borderRadius: 50 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Bolt sx={{ color: '#FFE66D' }} />
-                <Typography variant="subtitle2" sx={{
-                  color: mode === 'dark' ? 'white' : '#000000',
-                  fontWeight: 'bold'
-                }}>
-                  Grocery Planning Reimagined
-                </Typography>
-              </Box>
-            </GlassCard>
-
-            <Typography
-              variant="h1"
-              component="h1"
+            <Button
+              component={motion.button}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/register')}
               sx={{
-                fontWeight: 900,
-                color: mode === 'dark' ? 'white' : '#000000',
-                mb: 2,
-                fontSize: { xs: '2.5rem', sm: '3rem', md: '4rem', lg: '5rem', xl: '6rem' },
-                lineHeight: 1.1,
-                letterSpacing: '-0.02em'
+                px: { xs: 4, sm: 5 },
+                py: 2,
+                borderRadius: '60px',
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                fontWeight: 700,
+                textTransform: 'none',
+                background: 'linear-gradient(135deg, #f97316 0%, #FF8C5A 100%)',
+                color: '#ffffff',
+                boxShadow: '0 0 30px rgba(249, 115, 22, 0.35)',
+                '&:hover': {
+                  background: 'linear-gradient(135deg, #FF8C5A 0%, #f97316 100%)',
+                  boxShadow: '0 0 50px rgba(249, 115, 22, 0.5)',
+                },
               }}
             >
-              Your Personal <br />
-              <span style={{
-                background: 'linear-gradient(135deg, #FF6B6B, #FFE66D)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>
-                AI KitchenOS
-              </span>
-            </Typography>
+              Start Planning Today
+            </Button>
 
-            <Typography
-              variant="h5"
+            <Button
+              component={motion.button}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+              whileTap={prefersReducedMotion ? undefined : { scale: 0.97 }}
+              variant="outlined"
+              size="large"
+              onClick={() => navigate('/login')}
               sx={{
-                mb: 6,
-                color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                maxWidth: { xs: '100%', md: '80%', lg: '700px' },
-                mx: 'auto',
-                fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
-                px: { xs: 2, sm: 0 }
-              }}
-            >
-              Stop worrying about "What's for dinner?" Let AI handle the planning, budgeting, and shopping lists for your entire household.
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap', px: { xs: 2, sm: 0 } }}>
-              <Button
-                component={motion.button}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                variant="contained"
-                size="large"
-                sx={{
-                  bgcolor: mode === 'dark' ? 'white' : '#4ECDC4',
-                  color: mode === 'dark' ? 'black' : 'white',
-                  px: { xs: 3, sm: 5 },
-                  py: 2,
-                  borderRadius: 4,
-                  fontSize: { xs: '1rem', sm: '1.2rem' },
-                  fontWeight: 'bold',
-                  boxShadow: mode === 'dark'
-                    ? '0 0 30px rgba(255,255,255,0.3)'
-                    : '0 0 30px rgba(78, 205, 196, 0.3)',
-                  '&:hover': {
-                    bgcolor: mode === 'dark' ? '#f0f0f0' : '#3BA59E',
-                    transform: 'translateY(-2px)'
-                  }
-                }}
-                onClick={() => navigate('/register')}
-              >
-                Get Started Free
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </AuroraBackground>
-
-      {/* Features Grid */}
-      <Box sx={{
-        py: { xs: 6, md: 10, lg: 12 },
-        mt: { xs: -4, md: -8 },
-        position: 'relative',
-        zIndex: 3,
-        width: '100%',
-        bgcolor: mode === 'dark' ? '#0A0E27' : '#F5F5F5',
-        px: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 }
-      }}>
-        <Grid
-          container
-          spacing={{ xs: 3, md: 4, lg: 6 }}
-          sx={{
-            width: '100%',
-            maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1600px' },
-            mx: 'auto'
-          }}
-        >
-          {features.map((feature, index) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-              <GlassCard
-                hover
-                intensity="ultra"
-                sx={{
-                  height: '100%',
-                  textAlign: 'center',
-                  p: { xs: 3, sm: 4, md: 5 },
-                }}
-              >
-                <Box
-                  component={motion.div}
-                  whileHover={{ rotate: 10, scale: 1.1 }}
-                  sx={{ mb: 3, display: 'inline-block' }}
-                >
-                  {feature.icon}
-                </Box>
-                <Typography
-                  variant="h4"
-                  gutterBottom
-                  fontWeight="900"
-                  sx={{
-                    background: mode === 'dark'
-                      ? 'linear-gradient(135deg, #ffffff 0%, #e0e0e0 100%)'
-                      : 'linear-gradient(135deg, #2D3436 0%, #000000 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
-                  }}
-                >
-                  {feature.title}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{
-                    color: mode === 'dark' ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)',
-                    lineHeight: 1.7,
-                    fontSize: { xs: '0.95rem', sm: '1rem' }
-                  }}
-                >
-                  {feature.description}
-                </Typography>
-              </GlassCard>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-
-      {/* CTA Section */}
-      <Box sx={{
-        textAlign: 'center',
-        py: { xs: 6, md: 10 },
-        px: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 },
-        bgcolor: mode === 'dark' ? '#1A1F3A' : '#FFFFFF',
-        width: '100%'
-      }}>
-        <Typography
-          variant="h3"
-          fontWeight="bold"
-          gutterBottom
-          sx={{
-            color: '#000000',
-            fontSize: { xs: '1.75rem', sm: '2.25rem', md: '2.75rem', lg: '3rem' }
-          }}
-        >
-          Ready to Transform Your Kitchen?
-        </Typography>
-        <Typography
-          variant="h6"
-          sx={{
-            color: 'rgba(0,0,0,0.6)',
-            mb: 4,
-            maxWidth: { xs: '100%', md: '80%', lg: '600px' },
-            mx: 'auto',
-            fontSize: { xs: '1rem', sm: '1.15rem', md: '1.25rem' }
-          }}
-        >
-          Join thousands of families who have simplified their meal planning with AI.
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Button
-            variant="contained"
-            size="large"
-            sx={{
-              px: { xs: 3, sm: 5 },
-              py: 2,
-              borderRadius: 4,
-              fontSize: { xs: '1rem', sm: '1.1rem' },
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
-                boxShadow: '0 15px 40px rgba(102, 126, 234, 0.4)',
-                transform: 'translateY(-2px)'
-              }
-            }}
-            onClick={() => navigate('/register')}
-          >
-            Start Planning Today
-          </Button>
-          <Button
-            variant="outlined"
-            size="large"
-            sx={{
-              px: { xs: 3, sm: 5 },
-              py: 2,
-              borderRadius: 4,
-              fontSize: { xs: '1rem', sm: '1.1rem' },
-              fontWeight: 'bold',
-              borderWidth: 2,
-              color: '#000000',
-              borderColor: '#4ECDC4',
-              '&:hover': {
+                px: { xs: 4, sm: 5 },
+                py: 2,
+                borderRadius: '60px',
+                fontSize: { xs: '1rem', sm: '1.1rem' },
+                fontWeight: 700,
+                textTransform: 'none',
                 borderWidth: 2,
-                transform: 'translateY(-2px)',
-                boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                bgcolor: mode === 'dark' ? 'rgba(78, 205, 196, 0.05)' : 'rgba(78, 205, 196, 0.08)'
-              }
-            }}
-            onClick={() => navigate('/login')}
-          >
-            Sign In
-          </Button>
-        </Box>
+                color: 'rgba(255, 255, 255, 0.8)',
+                borderColor: 'rgba(255, 255, 255, 0.2)',
+                '&:hover': {
+                  borderWidth: 2,
+                  borderColor: 'rgba(249, 115, 22, 0.5)',
+                  bgcolor: 'rgba(249, 115, 22, 0.08)',
+                },
+              }}
+            >
+              Sign In
+            </Button>
+          </Box>
+        </motion.div>
       </Box>
 
-      {/* Footer */}
-      <Box sx={{
-        bgcolor: mode === 'dark' ? '#212121' : '#F5F5F5',
-        color: mode === 'dark' ? 'white' : '#000000',
-        py: { xs: 4, md: 6 },
-        width: '100%',
-        px: { xs: 2, sm: 3, md: 4, lg: 6, xl: 8 }
-      }}>
-        <Box sx={{
+      {/* 6. Footer */}
+      <Box
+        component="footer"
+        sx={{
+          bgcolor: '#070b14',
+          color: '#ffffff',
+          py: { xs: 5, md: 7 },
           width: '100%',
-          maxWidth: { xs: '100%', sm: '100%', md: '95%', lg: '90%', xl: '1600px' },
-          mx: 'auto'
-        }}>
-          <Grid container spacing={{ xs: 3, md: 4 }}>
+          px: { xs: 2, sm: 3, md: 4, lg: 6 },
+          borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+        }}
+      >
+        <Box
+          sx={{
+            maxWidth: '1200px',
+            mx: 'auto',
+          }}
+        >
+          <Grid container spacing={{ xs: 4, md: 5 }}>
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography
                 variant="h5"
-                fontWeight="bold"
+                component="h2"
+                fontWeight={800}
                 gutterBottom
-                sx={{ fontSize: { xs: '1.25rem', md: '1.5rem' } }}
+                sx={{
+                  fontSize: { xs: '1.25rem', md: '1.5rem' },
+                  background: 'linear-gradient(135deg, #f97316 0%, #FFD93D 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
               >
                 Grocery20
               </Typography>
               <Typography
                 variant="body2"
                 sx={{
-                  color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                  fontSize: { xs: '0.875rem', md: '1rem' }
+                  color: 'rgba(255, 255, 255, 0.45)',
+                  lineHeight: 1.7,
                 }}
               >
                 AI-powered meal planning and grocery management for modern families.
               </Typography>
             </Grid>
+
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography
                 variant="h6"
-                fontWeight="bold"
+                component="h2"
+                fontWeight={700}
                 gutterBottom
-                sx={{ fontSize: { xs: '1.1rem', md: '1.25rem' } }}
+                sx={{ fontSize: { xs: '1rem', md: '1.1rem' }, color: '#ffffff' }}
               >
                 Product
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  Features
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  Pricing
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  API
-                </Typography>
+                {['Features', 'Pricing', 'API'].map((item) => (
+                  <Typography
+                    key={item}
+                    variant="body2"
+                    sx={{
+                      color: 'rgba(255, 255, 255, 0.45)',
+                      cursor: 'pointer',
+                      transition: 'color 0.2s',
+                      '&:hover': { color: '#f97316' },
+                    }}
+                  >
+                    {item}
+                  </Typography>
+                ))}
               </Box>
             </Grid>
+
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography
                 variant="h6"
-                fontWeight="bold"
+                component="h2"
+                fontWeight={700}
                 gutterBottom
-                sx={{ fontSize: { xs: '1.1rem', md: '1.25rem' } }}
+                sx={{ fontSize: { xs: '1rem', md: '1.1rem' }, color: '#ffffff' }}
               >
                 Company
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  About
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  Blog
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: mode === 'dark' ? '#BDBDBD' : '#757575',
-                    cursor: 'pointer',
-                    '&:hover': { color: mode === 'dark' ? 'white' : '#000000' }
-                  }}
-                >
-                  Contact
-                </Typography>
+                {['About', 'Blog', 'Contact'].map((item) => (
+                  <Typography
+                    key={item}
+                    variant="body2"
+                    sx={{
+                      color: 'rgba(255, 255, 255, 0.45)',
+                      cursor: 'pointer',
+                      transition: 'color 0.2s',
+                      '&:hover': { color: '#f97316' },
+                    }}
+                  >
+                    {item}
+                  </Typography>
+                ))}
               </Box>
             </Grid>
           </Grid>
-          <Box sx={{
-            borderTop: '1px solid',
-            borderColor: mode === 'dark' ? '#424242' : '#E0E0E0',
-            mt: { xs: 4, md: 6 },
-            pt: { xs: 3, md: 4 },
-            textAlign: 'center'
-          }}>
+
+          <Box
+            sx={{
+              borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+              mt: { xs: 4, md: 6 },
+              pt: { xs: 3, md: 4 },
+              textAlign: 'center',
+            }}
+          >
             <Typography
               variant="body2"
               sx={{
-                color: mode === 'dark' ? '#9E9E9E' : '#757575',
-                fontSize: { xs: '0.8rem', md: '0.875rem' }
+                color: 'rgba(255, 255, 255, 0.3)',
+                fontSize: { xs: '0.8rem', md: '0.85rem' },
               }}
             >
-              © 2025 Grocery20. All rights reserved. Built with AI and love.
+              &copy; 2025 Grocery20. All rights reserved. Built with AI and love.
             </Typography>
           </Box>
         </Box>

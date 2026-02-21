@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuthRequest } from '../../middleware/auth.js';
 import { AppError, asyncHandler } from '../../middleware/errorHandler.js';
 import { query } from '../../config/database.js';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
+import { RowDataPacket } from 'mysql2';
 
 // Helper function to safely parse JSON fields
 const parseJsonField = (field: any, defaultValue: any): any => {
@@ -117,11 +117,38 @@ export const getHousehold = asyncHandler(async (req: AuthRequest, res: Response)
 // Update household
 export const updateHousehold = asyncHandler(async (req: AuthRequest, res: Response) => {
   const { householdId } = req.params;
-  const { name, budgetWeekly } = req.body;
+  const { name, budgetWeekly, zipCode, preferredStoreLocation } = req.body;
+
+  // Build dynamic UPDATE query with only provided fields
+  const setClauses: string[] = [];
+  const values: any[] = [];
+
+  if (name !== undefined) {
+    setClauses.push('name = ?');
+    values.push(name);
+  }
+  if (budgetWeekly !== undefined) {
+    setClauses.push('budget_weekly = ?');
+    values.push(budgetWeekly);
+  }
+  if (zipCode !== undefined) {
+    setClauses.push('zip_code = ?');
+    values.push(zipCode);
+  }
+  if (preferredStoreLocation !== undefined) {
+    setClauses.push('preferred_store_location = ?');
+    values.push(preferredStoreLocation);
+  }
+
+  if (setClauses.length === 0) {
+    throw new AppError('No fields to update', 400);
+  }
+
+  values.push(householdId);
 
   await query(
-    'UPDATE households SET name = ?, budget_weekly = ? WHERE id = ?',
-    [name, budgetWeekly, householdId]
+    `UPDATE households SET ${setClauses.join(', ')} WHERE id = ?`,
+    values
   );
 
   res.json({
