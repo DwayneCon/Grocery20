@@ -1,3 +1,4 @@
+import { createServer } from 'http';
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -15,6 +16,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { requestLogger, errorLogger } from './middleware/requestLogger.js';
 import { logger } from './utils/logger.js';
 import { startScheduler } from './services/cron/scheduler.js';
+import { createSocketServer } from './socket/socketServer.js';
 
 // Initialize Sentry error monitoring
 if (config.sentry.dsn) {
@@ -41,6 +43,7 @@ import krogerRoutes from './api/kroger/kroger.routes.js';
 import streakRoutes from './api/streak/streak.routes.js';
 import achievementsRoutes from './api/achievements/achievements.routes.js';
 import suggestionsRoutes from './api/suggestions/suggestions.routes.js';
+import ttsRoutes from './api/ai/tts.routes.js';
 
 // Load environment variables
 dotenv.config();
@@ -48,9 +51,13 @@ dotenv.config();
 // Validate environment variables
 validateEnv();
 
-// Create Express app
+// Create Express app and HTTP server (required for Socket.IO)
 const app: Application = express();
+const httpServer = createServer(app);
 const PORT = config.port;
+
+// Attach Socket.IO to the HTTP server
+const io = createSocketServer(httpServer);
 
 // Middleware
 app.use(cors(corsOptions));
@@ -118,6 +125,7 @@ app.use('/api/kroger', krogerRoutes);
 app.use('/api/streak', streakRoutes);
 app.use('/api/achievements', achievementsRoutes);
 app.use('/api/suggestions', suggestionsRoutes);
+app.use('/api/ai/tts', ttsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
@@ -139,11 +147,12 @@ const startServer = async () => {
     // Test database connection
     await testConnection();
 
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
       logger.info(`Environment: ${config.nodeEnv}`);
       logger.info(`API: http://localhost:${PORT}/api`);
       logger.info(`Health: http://localhost:${PORT}/health`);
+      logger.info(`Socket.IO: enabled`);
 
       // Start cron-based background scheduler
       startScheduler();
