@@ -2,11 +2,12 @@
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { config } from '../config/env.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Resolve the templates directory relative to the project root.
+// Uses process.cwd() as a stable base, avoiding import.meta.url
+// which causes issues in CJS test environments (e.g. Jest with ts-jest).
+const _templatesBase = path.resolve(process.cwd(), 'src', 'templates', 'emails');
 
 interface EmailOptions {
   to: string;
@@ -61,10 +62,7 @@ class EmailService {
    */
   private loadTemplate(templateName: string, variables: Record<string, any>): string {
     const templatePath = path.join(
-      __dirname,
-      '..',
-      'templates',
-      'emails',
+      _templatesBase,
       `${templateName}.html`
     );
 

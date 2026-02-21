@@ -11,6 +11,7 @@
     "start": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:integration": "jest --testPathPatterns='src/__tests__/api/' --runInBand --forceExit",
     "test:coverage": "jest --coverage"
   },
   "keywords": [

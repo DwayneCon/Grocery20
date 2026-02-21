@@ -168,6 +168,8 @@ const startServer = async () => {
   }
 };
 
-startServer();
+if (config.nodeEnv !== 'test') {
+  startServer();
+}
 
 export default app;

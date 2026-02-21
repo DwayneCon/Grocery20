@@ -62,14 +62,16 @@ const consolidateIngredients = (items: any[]): ConsolidatedIngredient[] => {
 
   items.forEach((item) => {
     const key = `${item.name.toLowerCase()}-${item.unit}`;
+    // MySQL DECIMAL columns are returned as strings by mysql2, so parse to number
+    const qty = typeof item.quantity === 'string' ? parseFloat(item.quantity) : (item.quantity || 0);
 
     if (consolidated.has(key)) {
       const existing = consolidated.get(key)!;
-      existing.quantity += item.quantity;
+      existing.quantity += qty;
     } else {
       consolidated.set(key, {
         name: item.name,
-        quantity: item.quantity,
+        quantity: qty,
         unit: item.unit,
         category: item.category || null,
         ingredient_id: item.ingredient_id || null,
@@ -115,7 +117,7 @@ export const createFromMealPlan = asyncHandler(async (req: AuthRequest, res: Res
     if (meal.recipe_id) {
       const ingredients = await query<RowDataPacket[]>(
         `SELECT
-          ri.amount as quantity,
+          ri.quantity,
           ri.unit,
           i.id as ingredient_id,
           i.name,
